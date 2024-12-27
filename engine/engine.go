@@ -1,7 +1,9 @@
-package main
+package engine
 
 import (
   "errors"
+  "fmt"
+  "strings"
 )
 
 type Node struct {
@@ -18,7 +20,7 @@ type Btree struct {
 
 // set env variable for minNode
 
-func createNewTree(minDegree int) *Btree {
+func CreateNewTree(minDegree int) *Btree {
   return &Btree{
     root : &Node{
       keys : make([]int, 0),
@@ -119,12 +121,63 @@ func (tree *Btree) InsertNonFull(node *Node, key int) (error){
   if len(node.children[childIndex].keys) == tree.minNode * 2-1{
     tree.SplitChild(node, childIndex)
     if node.keys[childIndex] < key{
-      (childIndex)++
+      childIndex++
     }
   }
 
   // recursively call function to fill a child
   return tree.InsertNonFull(node.children[childIndex], key)
 }
+func (tree *Btree) SearchKey(key int) (*Node, int, error) {
+  curNode := tree.root
+  for !curNode.isLeaf {
+      if len(curNode.keys) == 0 {
+          return nil, -1, errors.New("Invalid tree structure")
+      }
 
+      for i := 0; i < len(curNode.keys); i++ {
+          if key == curNode.keys[i] {
+              return curNode, i, nil
+          }
+      }
 
+      i := 0
+      for i < len(curNode.keys) && key > curNode.keys[i] {
+          i++
+      }
+      curNode = curNode.children[i]
+  }
+
+  for i := 0; i < len(curNode.keys); i++ {
+      if key == curNode.keys[i] {
+          return curNode, i, nil
+      }
+  }
+  return nil, -1, errors.New("Key does not exist")
+}
+
+func (tree *Btree) PrintTree() {
+    if tree.root == nil {
+        fmt.Println("Empty tree")
+        return
+    }
+    printNode(tree.root, 0, "")
+}
+
+func printNode(node *Node, level int, prefix string) {
+    // Print current node's keys
+    fmt.Printf("%s%v\n", strings.Repeat("    ", level), node.keys)
+    
+    // Print all children recursively
+    if !node.isLeaf {
+        for i := 0; i < len(node.children); i++ {
+            childPrefix := prefix
+            if i < len(node.children)-1 {
+                childPrefix += "├── "
+            } else {
+                childPrefix += "└── "
+            }
+            printNode(node.children[i], level+1, childPrefix)
+        }
+    }
+}
