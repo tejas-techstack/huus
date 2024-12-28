@@ -2,8 +2,6 @@ package main
 
 import (
   "github.com/tejas-techstack/storageEngine/test"
-  "fmt"
-  "time"
 )
 
 func main(){
