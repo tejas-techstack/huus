@@ -15,7 +15,7 @@ func TestSuite(){
     if err != nil{
       fmt.Printf("error inserting %v because %v\n", i, err)
     }
-   fmt.Printf("Time to execute: ", time.Since(start))
+   fmt.Printf("Time to execute: %V\n", time.Since(start))
   }
 
   err := tree.Insert(12381)
