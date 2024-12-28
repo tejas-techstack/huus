@@ -128,6 +128,8 @@ func (tree *Btree) InsertNonFull(node *Node, key int) (error){
   // recursively call function to fill a child
   return tree.InsertNonFull(node.children[childIndex], key)
 }
+
+
 func (tree *Btree) SearchKey(key int) (*Node, int, error) {
   curNode := tree.root
   for !curNode.isLeaf {
