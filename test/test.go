@@ -8,27 +8,32 @@ import (
 
 func TestSuite(){
   tree := engine.CreateNewTree(10)
+  placeHolder := make([]byte, 0)
+  start := time.Now()
 
-  for i:=0; i<1000000000; i++{
-    start := time.Now()
-    err := tree.Insert(i)
+  for i:=0; i<10000000; i++{
+    err := tree.Insert(i, placeHolder)
     if err != nil{
-      fmt.Printf("error inserting %v because %v\n", i, err)
     }
-   fmt.Printf("Time to execute: %V\n", time.Since(start))
   }
 
-  err := tree.Insert(12381)
+  err := tree.Insert(12, placeHolder)
   if err != nil{
-    fmt.Printf("Error inserting")
+    fmt.Println(err)
+    fmt.Println("Error inserting")
   }
-  // tree.PrintTree()
 
-  node, index, err := tree.SearchKey(12381)
+  // tree.Print()
+
+  /*
+  node, index, err := tree.SearchKey(999)
   if err != nil {
     fmt.Println("error occured: ", err)
   } else {
     fmt.Println(node)
     fmt.Println(index)
   }
+  */
+
+  fmt.Printf("Time to execute: %v\n", time.Since(start))
 }
