@@ -1,6 +1,7 @@
 package engine
 
 import (
+  "github.com/tejas-techstack/storageEngine/deletekey"
   "errors"
   "fmt"
   "strings"
@@ -88,7 +89,9 @@ func (tree *BPtree) Insert(key int, value []byte) (error) {
 
 
 // delete a key and value return error if key does not exist or if deletion fails
-// func (tree BPtree) Delete(key int) (error) {}
+func (tree BPtree) Delete(key int) (error) {
+  deletekey.Delete(key)
+}
 
 
 /* HELPER FUNCTIONS */
@@ -115,47 +118,6 @@ func CreateNewTree(minNode int) (*BPtree) {
 
 
 // function to split a node in a b plus tree
-/*
-func (tree *BPtree) splitChild(parent *Node, index int) (error) {
-  child := parent.children[index]
-  minNode := tree.minNode
-
-  newNode := &Node{
-    kvStore : []KV{},
-    children : []*Node{},
-    isLeaf : child.isLeaf,
-    nextLeaf : nil,
-  }
-
-  midKey := child.kvStore[minNode - 1]
-
-  if child.isLeaf{
-    // if child is a leaf promote the mid key
-    newNode.kvStore = child.kvStore[minNode:]
-    child.kvStore = child.kvStore[:minNode]
-
-    child.nextLeaf = newNode
-  } else {
-    newNode.kvStore = child.kvStore[minNode:]
-    newNode.children = child.children[minNode:]
-
-    child.kvStore = child.kvStore[:minNode-1]
-    child.children = child.children[:minNode]
-  }
-
-  // shift the parent's kvStore and children
-  parent.kvStore = append(parent.kvStore, KV{})
-  copy(parent.kvStore[index+1:], parent.kvStore[index:])
-  parent.kvStore[index] = midKey
-  
-  parent.children = append(parent.children, nil)
-  copy(parent.children[index+2:], parent.children[index+1:])
-  parent.children[index+1] = newNode
-
-  return nil
-}
-*/
-
 func (tree *BPtree) splitChild(parent *Node, index int) (error) {
   child := parent.children[index]
   minNode := tree.minNode
@@ -168,20 +130,16 @@ func (tree *BPtree) splitChild(parent *Node, index int) (error) {
   }
 
   if child.isLeaf {
-    // For leaf nodes: copy all keys including mid key to right node
     newNode.kvStore = append(newNode.kvStore, child.kvStore[minNode-1:]...)
     child.kvStore = child.kvStore[:minNode-1]
     
-    // Fix leaf chain
     newNode.nextLeaf = child.nextLeaf
     child.nextLeaf = newNode
     
-    // Parent gets copy of first key in new node
     parent.kvStore = append(parent.kvStore, KV{})
     copy(parent.kvStore[index+1:], parent.kvStore[index:])
     parent.kvStore[index] = newNode.kvStore[0]
   } else {
-    // Non-leaf split stays the same
     midKey := child.kvStore[minNode-1]
     newNode.kvStore = child.kvStore[minNode:]
     newNode.children = child.children[minNode:]
