@@ -88,9 +88,9 @@ func (tree *BPtree) Insert(key int, value []byte) (error) {
 
 
 // delete a key and value return error if key does not exist or if deletion fails
-func (tree BPtree) Delete(key int) (error) {
-  deletekey.Delete(key)
-}
+// func (tree BPtree) Delete(key int) (error) {
+//   deletekey.Delete(key)
+// }
 
 
 /* HELPER FUNCTIONS */
@@ -164,14 +164,14 @@ func (tree *BPtree) insertNonFull(node *Node, key int) (valueOffset, error) {
   // if current node is full, split it before moving onto the child
   // if it is leaf insert into the leaf
 	if node.isLeaf {
-		i := 0
+		i := len(node.kvStore) - 1
 		// Find the position for the key in the leaf node
-		for i < len(node.kvStore) && key > node.kvStore[i].key {
-			i++
+		for i >= 0 && key < node.kvStore[i].key {
+			i--
 		}
 
 		// If the key already exists, return an error
-		if i < len(node.kvStore) && key == node.kvStore[i].key {
+		if i >= 0 && key == node.kvStore[i].key {
 			return -1, errors.New("Key already exists")
 		}
 
@@ -180,16 +180,19 @@ func (tree *BPtree) insertNonFull(node *Node, key int) (valueOffset, error) {
       valOff : -1,
     }
 
+    i++
 		// Insert the key into the correct position in the node
 		node.kvStore = append(node.kvStore[:i], append([]KV{kvPair}, node.kvStore[i:]...)...)
 		return -1, nil
 	}
 
 	// For internal nodes, find the correct child to insert the key
-	i := 0
-	for i < len(node.kvStore) && key > node.kvStore[i].key {
-		i++
+	i := len(node.kvStore) - 1
+	for i >= 0  && key < node.kvStore[i].key {
+		i--
 	}
+
+  i++
 
 	// If the child is full, split it
 	if len(node.children[i].kvStore) == 2*tree.minNode-1 {

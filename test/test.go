@@ -7,11 +7,11 @@ import (
 )
 
 func TestSuite(){
-  tree := engine.CreateNewTree(10)
+  tree := engine.CreateNewTree(3)
   placeHolder := make([]byte, 0)
   start := time.Now()
 
-  for i:=0; i<10000000; i++{
+  for i:=0; i<10; i++{
     err := tree.Insert(i, placeHolder)
     if err != nil{
     }
@@ -23,7 +23,7 @@ func TestSuite(){
     fmt.Println("Error inserting")
   }
 
-  // tree.Print()
+  tree.Print()
 
   /*
   node, index, err := tree.SearchKey(999)
