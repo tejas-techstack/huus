@@ -6,5 +6,7 @@ import (
 
 func main(){
   // TODO write a test suite
-  test.TestSuite()
+  // test.TestSuite(n, minNode, rs)
+  // rs => random or sequential
+  test.TestSuite(100, 5, 10)
 }

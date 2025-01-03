@@ -7,7 +7,10 @@ import (
   // "log"
 )
 
-const blockSize = 4096
+const (
+  blockSize = 4096
+  tombstone = "tombstone"
+)
 
 type valueOffset int
 
@@ -35,7 +38,42 @@ type BPtree struct {
 
 /* EXTERNAL FUNCTIONS */
 // get a value of the key, error if key does not exist
-// func (tree *BPtree) Get(key int) (valueOffset, error){} 
+// returns nil, -1, -1 and an error if error occurs
+func (tree *BPtree) Get(key int) (*Node, int, valueOffset, error){
+  if tree.root == nil {
+    return nil,-1, -1, errors.New("Tree is empty")
+  }
+
+  temp := tree.root
+  for !temp.isLeaf {
+    i := len(temp.kvStore) - 1
+    for i >= 0 && key < temp.kvStore[i].key{
+      i--
+    }
+    i++
+    temp = temp.children[i]
+  }
+
+  if len(temp.kvStore) == 0{
+    return nil, -1, -1, errors.New("Empty node (deletion needs to be implemented properly)")
+  }
+
+  if key < temp.kvStore[0].key || key > temp.kvStore[len(temp.kvStore)-1].key {
+    return nil,-1, -1, errors.New("Key does not exist.")
+  } else {
+    // HACK: can be improved using binary search
+    for i:=0 ;i < len(temp.kvStore); i++{
+      if key == temp.kvStore[i].key{
+        return temp, i, temp.kvStore[i].valOff, nil
+      }
+    }
+
+    return nil,-1, -1, errors.New("Key does not exist.")
+  }
+  
+
+  return nil, -1 , -1, errors.New("Unknown error")
+} 
 
 // insert a key and value return error if it fails
 func (tree *BPtree) Insert(key int, value []byte) (error) {
@@ -69,29 +107,38 @@ func (tree *BPtree) Insert(key int, value []byte) (error) {
   }
 
   // insert the key into the store
-  // replace _ with valOff here
-  _, err := tree.insertNonFull(tree.root, key)
+  valOff, err := tree.insertNonFull(tree.root, key)
   if err != nil {
     return err
-  }
-  /*
-  else {
+  } else {
     if err := writeVal(valOff, value); err != nil{
-      // BUG: if write fails, the inserted key needs to be deleted or write needs to happen again.
+      // NOTE we are deleting the key if the write fails
+      // can be delted after retrying writes
+      tree.Delete(key)
       return err
     }
   }
-  */
 
   return nil
 }
 
 
 // delete a key and value return error if key does not exist or if deletion fails
-// func (tree BPtree) Delete(key int) (error) {
-//   deletekey.Delete(key)
-// }
+func (tree BPtree) Delete(key int) (error) {
+  // as of now, if deletion occurs
+  // we only delete the key in the leaf nodes, (ignore the properties of the tree)
+  // we donot delete any of the parents and ignore the minimum node requirements in the leaf nodes.
+  // TODO: delete duplicates and merge nodes.
+  node,index, valOff, err := tree.Get(key)
+  if err != nil {
+    return err
+  }
 
+  node.kvStore = append(node.kvStore[:index], node.kvStore[index+1:]...)
+  ts := []byte(tombstone)
+  writeVal(valOff, ts)
+  return nil
+}
 
 /* HELPER FUNCTIONS */
 
@@ -110,27 +157,30 @@ func CreateNewTree(minNode int) (*BPtree) {
 }
 
 // function to write value into value store
-// func writeVal(valOff valueOffset, value []byte) (error) {}
+func writeVal(valOff valueOffset, value []byte) (error) {
+  return nil
+}
 
 // function to read value from value store
 // func readVal (valOff valueOffset) ([]byte, error) {}
 
 
 // function to split a node in a b plus tree
-func (tree *BPtree) splitChild(parent *Node, index int) (error) {
+func (tree *BPtree) splitChild(parent *Node, index int) error {
   child := parent.children[index]
   minNode := tree.minNode
 
   newNode := &Node{
-    kvStore : []KV{},
-    children : []*Node{},
-    isLeaf : child.isLeaf,
-    nextLeaf : nil,
+    kvStore: []KV{},
+    children: []*Node{},
+    isLeaf: child.isLeaf,
+    nextLeaf: nil,
   }
 
   if child.isLeaf {
-    newNode.kvStore = append(newNode.kvStore, child.kvStore[minNode-1:]...)
-    child.kvStore = child.kvStore[:minNode-1]
+    splitPoint := minNode - 1
+    newNode.kvStore = append(newNode.kvStore, child.kvStore[splitPoint:]...)
+    child.kvStore = child.kvStore[:splitPoint]
     
     newNode.nextLeaf = child.nextLeaf
     child.nextLeaf = newNode
@@ -139,11 +189,12 @@ func (tree *BPtree) splitChild(parent *Node, index int) (error) {
     copy(parent.kvStore[index+1:], parent.kvStore[index:])
     parent.kvStore[index] = newNode.kvStore[0]
   } else {
-    midKey := child.kvStore[minNode-1]
-    newNode.kvStore = child.kvStore[minNode:]
-    newNode.children = child.children[minNode:]
-    child.kvStore = child.kvStore[:minNode-1]
-    child.children = child.children[:minNode]
+    splitPoint := minNode - 1
+    midKey := child.kvStore[splitPoint]
+    newNode.kvStore = append(newNode.kvStore, child.kvStore[splitPoint+1:]...)
+    newNode.children = append(newNode.children, child.children[splitPoint+1:]...)
+    child.kvStore = child.kvStore[:splitPoint]
+    child.children = child.children[:splitPoint+1]
     
     parent.kvStore = append(parent.kvStore, KV{})
     copy(parent.kvStore[index+1:], parent.kvStore[index:])
@@ -157,13 +208,13 @@ func (tree *BPtree) splitChild(parent *Node, index int) (error) {
   return nil
 }
 
-
 // recursive function to insert into a node
 func (tree *BPtree) insertNonFull(node *Node, key int) (valueOffset, error) {
   // find node to insert into
   // if current node is full, split it before moving onto the child
   // if it is leaf insert into the leaf
 	if node.isLeaf {
+
 		i := len(node.kvStore) - 1
 		// Find the position for the key in the leaf node
 		for i >= 0 && key < node.kvStore[i].key {
