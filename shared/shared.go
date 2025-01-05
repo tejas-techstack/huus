@@ -1,6 +1,9 @@
 package shared
 
-const blockSize = 4096
+const (
+  testFile = "test.txt"  
+  blockSize = 4096
+)
 
 type valueOffset int
 
