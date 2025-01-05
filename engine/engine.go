@@ -4,6 +4,7 @@ import (
   "errors"
   "fmt"
   "strings"
+  "github.com/tejas-techstack/storageEngine/database"
   // "log"
 )
 
@@ -282,4 +283,9 @@ func printNode(node *Node, level int) {
            printNode(child, level+1)
        }
    }
+}
+
+func something(){
+  testString := "something"
+  database.WriteVal([]byte(testString))
 }
