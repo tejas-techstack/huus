@@ -3,9 +3,6 @@ package engine
 import (
   "errors"
   "fmt"
-  "strings"
-  "github.com/tejas-techstack/storageEngine/database"
-  // "log"
 )
 
 const (
@@ -65,7 +62,7 @@ func (tree *BPtree) Get(key int) (*Node, int, valueOffset, error){
     // HACK: can be improved using binary search
     for i:=0 ;i < len(temp.kvStore); i++{
       if key == temp.kvStore[i].key{
-        return temp, i, temp.kvStore[i].valOff, nil
+        return temp, temp.kvStore[i].key, temp.kvStore[i].valOff, nil
       }
     }
 
@@ -112,10 +109,10 @@ func (tree *BPtree) Insert(key int, value []byte) (error) {
   if err != nil {
     return err
   } else {
-    if err := writeVal(valOff, value); err != nil{
-      // NOTE we are deleting the key if the write fails
-      // can be delted after retrying writes
-      tree.Delete(key)
+    err = WriteVal(value, valOff)
+    if err != nil{
+      fmt.Println("Error writing value :", err)
+      err = tree.Delete(key)
       return err
     }
   }
@@ -137,7 +134,7 @@ func (tree BPtree) Delete(key int) (error) {
 
   node.kvStore = append(node.kvStore[:index], node.kvStore[index+1:]...)
   ts := []byte(tombstone)
-  writeVal(valOff, ts)
+  WriteVal(ts, valOff)
   return nil
 }
 
@@ -157,10 +154,6 @@ func CreateNewTree(minNode int) (*BPtree) {
   }
 }
 
-// function to write value into value store
-func writeVal(valOff valueOffset, value []byte) (error) {
-  return nil
-}
 
 // function to read value from value store
 // func readVal (valOff valueOffset) ([]byte, error) {}
@@ -224,7 +217,7 @@ func (tree *BPtree) insertNonFull(node *Node, key int) (valueOffset, error) {
 
 		// If the key already exists, return an error
 		if i >= 0 && key == node.kvStore[i].key {
-			return -1, errors.New("Key already exists")
+			return node.kvStore[i].valOff, errors.New("Key already exists")
 		}
 
     kvPair := KV{
@@ -235,7 +228,14 @@ func (tree *BPtree) insertNonFull(node *Node, key int) (valueOffset, error) {
     i++
 		// Insert the key into the correct position in the node
 		node.kvStore = append(node.kvStore[:i], append([]KV{kvPair}, node.kvStore[i:]...)...)
-		return -1, nil
+    
+    valOff,err := GetFreeBlock()
+    if err != nil {
+      return -1, errors.New("Could not allocate memory.")
+    }
+    node.kvStore[i].valOff = valOff
+
+		return valOff, nil
 	}
 
 	// For internal nodes, find the correct child to insert the key
@@ -256,36 +256,8 @@ func (tree *BPtree) insertNonFull(node *Node, key int) (valueOffset, error) {
 	}
 
 	// Recursively call the function to fill a child
-  _, err := tree.insertNonFull(node.children[i], key)
-	return -1, err
+  valOff, err := tree.insertNonFull(node.children[i], key)
+	return valOff, err
 }
 
-// helper function to print the tree.
-func (tree *BPtree) Print() {
-   if tree.root == nil {
-       fmt.Println("Empty tree")
-       return
-   }
-   printNode(tree.root, 0)
-}
 
-func printNode(node *Node, level int) {
-   indent := strings.Repeat("  ", level)
-   
-   fmt.Printf("%sNode(leaf:%v): ", indent, node.isLeaf)
-   for _, kv := range node.kvStore {
-       fmt.Printf("%d ", kv.key)
-   }
-   fmt.Println()
-
-   if !node.isLeaf {
-       for _, child := range node.children {
-           printNode(child, level+1)
-       }
-   }
-}
-
-func something(){
-  testString := "something"
-  database.WriteVal([]byte(testString))
-}
