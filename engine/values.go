@@ -68,15 +68,27 @@ func WriteVal(data []byte, valOff valueOffset) (error){
     return err
   }
 
-  numberOfBytesWritten, err := f.Write(dataBlock) ; 
+  _, err = f.Write(dataBlock) 
   if err != nil{
     return err
   }
-  _ = numberOfBytesWritten
 
   return nil
 }
 
-func ReadVal(valOff valueOffset) ([]byte){
-  return []byte{}
+func ReadVal(valOff valueOffset) ([]byte, error){
+  f, err := os.OpenFile(TestFile, os.O_RDONLY, 0644)
+  if err != nil {
+    return []byte{}, err
+  }
+
+  value := make([]byte, 4096)
+  offset := int64(valOff * blockSize)
+
+  _, err = f.ReadAt(value, offset);
+  if err != nil {
+    return []byte{}, err
+  }
+
+  return value, nil
 }

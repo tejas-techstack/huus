@@ -37,9 +37,9 @@ type BPtree struct {
 /* EXTERNAL FUNCTIONS */
 // get a value of the key, error if key does not exist
 // returns nil, -1, -1 and an error if error occurs
-func (tree *BPtree) Get(key int) (*Node, int, valueOffset, error){
+func (tree *BPtree) Get(key int) (*Node, int, []byte, error){
   if tree.root == nil {
-    return nil,-1, -1, errors.New("Tree is empty")
+    return nil,-1, nil, errors.New("Tree is empty")
   }
 
   temp := tree.root
@@ -53,24 +53,28 @@ func (tree *BPtree) Get(key int) (*Node, int, valueOffset, error){
   }
 
   if len(temp.kvStore) == 0{
-    return nil, -1, -1, errors.New("Empty node (deletion needs to be implemented properly)")
+    return nil, -1, nil, errors.New("Empty node (deletion needs to be implemented properly)")
   }
 
   if key < temp.kvStore[0].key || key > temp.kvStore[len(temp.kvStore)-1].key {
-    return nil,-1, -1, errors.New("Key does not exist.")
+    return nil,-1, nil, errors.New("Key does not exist.")
   } else {
     // HACK: can be improved using binary search
     for i:=0 ;i < len(temp.kvStore); i++{
       if key == temp.kvStore[i].key{
-        return temp, temp.kvStore[i].key, temp.kvStore[i].valOff, nil
+        value, err := ReadVal(temp.kvStore[i].valOff)
+        if err != nil {
+          return nil, -1, nil, err
+        }
+        return temp, temp.kvStore[i].key, value, nil
       }
     }
 
-    return nil,-1, -1, errors.New("Key does not exist.")
+    return nil,-1, nil, errors.New("Key does not exist.")
   }
   
 
-  return nil, -1 , -1, errors.New("Unknown error")
+  return nil, -1 , nil, errors.New("Unknown error")
 } 
 
 // insert a key and value return error if it fails
@@ -127,10 +131,12 @@ func (tree BPtree) Delete(key int) (error) {
   // we only delete the key in the leaf nodes, (ignore the properties of the tree)
   // we donot delete any of the parents and ignore the minimum node requirements in the leaf nodes.
   // TODO: delete duplicates and merge nodes.
-  node,index, valOff, err := tree.Get(key)
+  node,index, _, err := tree.Get(key)
   if err != nil {
     return err
   }
+
+  valOff := node.kvStore[index].valOff
 
   node.kvStore = append(node.kvStore[:index], node.kvStore[index+1:]...)
   ts := []byte(tombstone)
