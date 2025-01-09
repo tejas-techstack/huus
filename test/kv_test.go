@@ -2,20 +2,37 @@ package test
 
 import (
   "github.com/tejas-techstack/storageEngine/engine"
-  "fmt"
   "testing"
   // "math/rand"
 )
 
-/*
 func TestInsert(t *testing.T) {
-  _ = engine.CreateNewTree(10)
-  fmt.Println("Hello")
-  fmt.Println("Hello")
+  testString := "hello world"
+  tree := engine.CreateNewTree(5)
+  err := tree.Insert(1, []byte(testString))
+  if err != nil {
+    t.Errorf("Insert Error : %v", err)
+  }
 }
-*/
 
 func BenchmarkInsert(b *testing.B){
-  _ = engine.CreateNewTree(10)
-  fmt.Println("Hello")
+  testString := "Hello world"
+  tree := engine.CreateNewTree(5)
+  for i := range b.N {
+    err := tree.Insert(i, []byte(testString))
+    if err != nil{
+      b.Errorf("Insert Error : %v", err)
+    }
+  }
+
+  // b.Log("Time to insert:", b.Elapsed())
+
+  for i := range b.N{
+    _, _, _, err := tree.Get(i)
+    if err != nil{
+      b.Errorf("Get Error : %v", err)
+    }
+    // b.Logf("Key is :%v, Value is :%v", key, value)
+  }
 }
+
