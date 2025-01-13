@@ -11,7 +11,7 @@ import (
 const defaultOrder = 500
 
 // pager constants
-const maxPageSize = 4096 //change to math.MaxUint16 later on.
+const maxPageSize = 4096 //change to math.MaxUint1ajdoaiwjd6 later on.
 const minPageSize = 32
 
 const maxOrder = math.MaxUint16
