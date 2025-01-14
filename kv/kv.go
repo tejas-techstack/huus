@@ -17,7 +17,7 @@ const minPageSize = 32
 const maxOrder = math.MaxUint16
 
 type BPTree struct {
-  order int
+  order uint16
 
   storage *storage
 
@@ -63,7 +63,6 @@ func Open(path string) (*BPTree, error) {
 type node struct {
   id uint32
 
-  isLeaf bool
   parentId uint32
 
   key [][]byte
@@ -73,6 +72,10 @@ type node struct {
   // pointer can either be a value or children
   // based on if the node is a leaf or not
   pointers []*pointer
+  
+  // leaf vs non leaf.
+  isLeaf bool
+  sibling [1]uint32 // holds id of next node if child, else holds nil
 }
 
 type pointer struct {
@@ -103,19 +106,82 @@ func (t *BPTree) Get(key []byte) ([]byte, error) {
     return nil, fmt.Errorf("Not initialized")
   }
 
-  leaf, err := findLeaf(key)
+  leaf, err := t.findLeaf(key)
   if err != nil {
     return nil, fmt.Errorf("Could not find leaf : %w", err)
   }
 
-  for i := 0; i < leaf.keyNum ; i++ {
-    if compare(key, leaf.key[i]) == 0 {
-      return leaf.pointers[i].asValue(), nil
-    }
+  index, err := findIndex(leaf, key)
+  if err != nil {
+    return nil, fmt.Errorf("Could not Get value, finding index failed : %w", err)
+  } else {
+    return leaf.pointers[index].asValue(), nil
   }
 
   return nil, fmt.Errorf("Key not found error")
 }
+
+func (t *BPTree) findLeaf(key []byte) (*node, error) {}
+
+func (t *BPTree) Put(key, value []byte) (error) {
+  if t.metadata == nil {
+    return fmt.Errorf("Tree not initialized")
+  }
+
+  if len(value) > maxPageSize {
+    return fmt.Errorf("value greater than pageSize")
+  }
+
+  leaf, err := t.findLeafToInsert(key)
+  if err != nil {
+    return fmt.Errorf("Put failed : %w", err)
+  }
+
+  err := t.insertIntoNode(leaf,key, pointer(value))
+  if err != nil {
+    return fmt.Errorf("Failed to insert into node : %w", err)
+  } else {
+    return nil
+  }
+
+  return fmt.Errorf("Unknow error while executing Put")
+}
+
+func (t *BPTree) findLeafToInsert(key []byte) error {
+  return fmt.Errorf("Unknown error while executing findLeafToInsert")
+}
+
+// insert (key, child)
+func (t *BPTree) insertIntoNode(curr *node,key []byte, pointer *pointer) error {
+  // find index to insert at using key.
+  index, err := findIndex(curr, key)
+  if err != nil {
+    return fmt.Errorf("Inserting into node failed : %w", err)
+  }
+
+  if pointer.isValue() == 0 {
+    err := insertValueAt(curr, index, pointer.asValue())
+    if err != nil {
+      return fmt.Errorf("Inserting value failed : %w", err)
+    }
+  }
+
+  if pointer.isNodeId() == 0 {
+    err := insertNodeAt(curr, index, pointer.asNodeId())
+    if err != nil {
+      return fmt.Errorf("Inserting node failed : %w", err)
+    }
+  }
+
+  return fmt.Errorf("Unknown error while inserting into node.")
+}
+
+func findIndex(curr *node, key []byte) (int, error) {}
+
+func insertValueAt(curr *node, index int, value []byte) error {}
+
+func insertNodeAt(curr *node, index int, child uint32) error {}
+
 
 func compare(byteA ,byteB []byte) int {
   return bytes.Compare(byteA, byteB)

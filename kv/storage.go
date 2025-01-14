@@ -3,7 +3,7 @@
 package kv
 
 type storage struct {
-  file *file
+  fo *file
 
   pageSize uint16
 
@@ -15,4 +15,11 @@ type storage struct {
 
 func newStorage (path string, pageSize uint16) (*storage, error){}
 
-func loadMetadata() (*treeMetadata, error) {}
+func loadMetadata() (*treeMetadata, error) {
+  // read from storage.fo header
+
+}
+
+func (s *storage) loadNode(nodeId uint32) (*node, error) {}
+
+func (s *storage) updateNode() (error) {}
