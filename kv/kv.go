@@ -355,14 +355,14 @@ func (t *BPTree) splitNode(cur *node, parent *node) error {
 
   newNode := &node {
     id : newRootId,
-    parentId : 0,
+    parentId : parent.id,
     key : []byte{},
     pointers : []*pointer{},
     isLeaf : cur.isLeaf,
     sibling : 0,
   }
 
-  midKey := cur.key[t.minKeyNum - 1]
+  seperator := cur.key[t.minKeyNum]
 
   if newNode.isLeaf {
     // update sibling 
@@ -387,8 +387,18 @@ func (t *BPTree) splitNode(cur *node, parent *node) error {
     child.pointers = child.pointesr[:t.minKeyNum]
   }
 
-  // move seperator to parent.
+  // have to insert newNode to parent as well innit.
 
+  // move seperator to parent.
+  index, err := findChildIndex(parent)
+  if err != nil {
+    return fmt.Errorf("Error finding child index : %w", err)
+  }
+
+  err := insertNodeAt(parent, Index, seperator)
+  if err != nil {
+    return fmt.Errorf("Error inserting sepeartor into parent")
+  }
 
 }
 
@@ -396,6 +406,8 @@ func (t *BPTree) insertValueAt(cur *node, index int, value []byte) error {
   if len(cur.key) == t.order - 1 {
     return fmt.Errorf("Cannot insert value, node is full")
   }
+
+  // write the value to storage.
 }
 
 func (t *BPTree) insertNodeAt(cur *node, index int, child uint32) error {
@@ -403,6 +415,7 @@ func (t *BPTree) insertNodeAt(cur *node, index int, child uint32) error {
     return fmt.Errorf("Cannot insert value, node is full")
   }
 
+  // write the node to stoarge.
 }
 
 func compare(byteA ,byteB []byte) int {
