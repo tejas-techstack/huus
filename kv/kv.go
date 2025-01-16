@@ -111,8 +111,8 @@ func (t *BPTree) Get(key []byte) ([]byte, error) {
     return nil, fmt.Errorf("Could not find leaf : %w", err)
   }
 
-  for i := 0; i < len(curr.key); i++ {
-    if compare(curr.key[i], key) == 0{
+  for i := 0; i < len(cur.key); i++ {
+    if compare(cur.key[i], key) == 0{
       return leaf.pointers[index].asValue(), nil
     }
   }
@@ -148,30 +148,30 @@ func (t *BPTree) Put(key, value []byte) (error) {
 
 
 // insert (key, child)
-func (t *BPTree) insertIntoNode(curr *node,key []byte, pointer *pointer) error {
+func (t *BPTree) insertIntoNode(cur *node,key []byte, pointer *pointer) error {
 
-  if len(curr.key) == t.order {
+  if len(cur.key) == t.order {
     return fmt.Errorf("Node is full cannot insert into node.")
   }
 
   //TODO find index to insert at using key.
   index := 0
-  for index < len(curr.key) {
-    if compare(key, curr.key[i]) < 0 {
+  for index < len(cur.key) {
+    if compare(key, cur.key[i]) < 0 {
       break
     }
     index++
   }
 
   if pointer.isValue() == 0 {
-    err := insertValueAt(curr, index, pointer.asValue())
+    err := insertValueAt(cur, index, pointer.asValue())
     if err != nil {
       return fmt.Errorf("Inserting value failed : %w", err)
     }
   }
 
   if pointer.isNodeId() == 0 {
-    err := insertNodeAt(curr, index, pointer.asNodeId())
+    err := insertNodeAt(cur, index, pointer.asNodeId())
     if err != nil {
       return fmt.Errorf("Inserting node failed : %w", err)
     }
@@ -258,11 +258,11 @@ func (t *BPTree) findLeafToInsert(key []byte) *node, error {
 }
 
 
-func (t *BPTree) findChildIndex(curr *node, key []byte) (int, error) {
+func (t *BPTree) findChildIndex(cur *node, key []byte) (int, error) {
   
   index := 0
-  for index < len(curr.key) {
-    if compare(key, curr.key[index]) < 0 {
+  for index < len(cur.key) {
+    if compare(key, cur.key[index]) < 0 {
       break
     }
     index++
@@ -359,24 +359,47 @@ func (t *BPTree) splitNode(cur *node, parent *node) error {
     key : []byte{},
     pointers : []*pointer{},
     isLeaf : cur.isLeaf,
-    sibling : cur.sibling,
+    sibling : 0,
   }
+
+  midKey := cur.key[t.minKeyNum - 1]
 
   if newNode.isLeaf {
     // update sibling 
-    // copy key.
+    newNode.sibling = cur.sibling
+    cur.sibling = newNode.id
+
+    // update keys.
+    newNode.key = append(newNode.key, child.key[t.minKeyNum : ]...)
+    child.key = child.key[:t.minKeyNum]
+
+    // update values.
+    newNode.pointers = append(newNode.pointers, child.pointers[t.minKeyNum : ]...)
+    child.pointers = child.pointers[:t.minKeyNum]
+  } else {
+    // node is not a leaf.
+    // update child node.
+    newNode.key = append(newNode.key, child.key[t.minKeyNum + 1: ]...)
+    child.key = child.key[:t.minKeyNum]
+
+    // update child pointers
+    newNode.pointers = append(newNode.pointers, child.pointers[t.minKeyNum :]...)
+    child.pointers = child.pointesr[:t.minKeyNum]
   }
+
+  // move seperator to parent.
+
 
 }
 
-func (t *BPTree) insertValueAt(curr *node, index int, value []byte) error {
-  if len(curr.key) == t.order - 1 {
+func (t *BPTree) insertValueAt(cur *node, index int, value []byte) error {
+  if len(cur.key) == t.order - 1 {
     return fmt.Errorf("Cannot insert value, node is full")
   }
 }
 
-func (t *BPTree) insertNodeAt(curr *node, index int, child uint32) error {
-  if len(curr.key) == t.order - 1 {
+func (t *BPTree) insertNodeAt(cur *node, index int, child uint32) error {
+  if len(cur.key) == t.order - 1 {
     return fmt.Errorf("Cannot insert value, node is full")
   }
 
