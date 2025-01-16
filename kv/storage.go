@@ -20,6 +20,10 @@ func loadMetadata() (*treeMetadata, error) {
 
 }
 
+func (s *storage) updateMetaData(nodeId uint32) error {}
+
 func (s *storage) loadNode(nodeId uint32) (*node, error) {}
 
-func (s *storage) updateNode() (error) {}
+func (s *storage) updateNode() error {}
+
+func (s *storage) newNode() uint32, error {}
