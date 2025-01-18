@@ -11,21 +11,33 @@ func createTestTree() (*BPTree) {
   return nil
 }
 
-// testing Insert function
-func TestInsert(t *testing.T){
-  return
-}
+// Open(path string) error
+func TestOpen(t *testing.T) {}
 
-// testing Get function
-func TestGet(t *testing.T){
-  return
-}
+// t.Get(key []byte) ([]byte, error)
 
-// testing Delete function
-func TestDelete(t *testing.T){
-  return
-}
+// t.Put(key, value []byte) (error) 
 
-func TestRangeInsert(t *testing.T){
-  return
-}
+// t.insertIntoNode(cur *node, key []byte, pointer) error 
+
+// t.findLeaf(key []byte) (*node, error) {}
+
+// t.findLeafToInsert(key []byte) (*node, error) {}
+
+// t.findChildIndex(cur *node, key []byte) (int, error){}
+
+// t.findChild(parent *node, key []byte) (*node, error) {}
+
+// t.splitRoot() error {}
+
+// t.splitNode(cur *node, parent *node) error {}
+
+// t.insertKeyAt(cur, index, key[]byte) error {}
+
+// t.insertValueAt(cur, index, value []byte) error {}
+
+// t. insertNodeAt(cur, index, nodeId uint32) error {}
+
+// compare(x, y []byte) int {}
+
+// calcMinOrder(order uint16) {}
