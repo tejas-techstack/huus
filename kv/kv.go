@@ -57,9 +57,9 @@ func Open(path string) (*BPTree, error) {
     return nil, fmt.Errorf("Tried to open a tree with order %w, but has order %w", metadata.order, defaultOrder)
   }
 
-  minKeyNum := calcMinOrder(defaultOrder)
+  minKeyNum := calcMinOrder(metadata.order)
 
-  return &BPTree{order : defaultOrder, storage : storage, metadata : metadata, minKeyNum : minKeyNum}, nil
+  return &BPTree{order : metadata.order, storage : storage, metadata : metadata, minKeyNum : minKeyNum}, nil
 }
 
 type node struct {
@@ -111,8 +111,8 @@ func (t *BPTree) Get(key []byte) ([]byte, error) {
     return nil, fmt.Errorf("Could not find leaf : %w", err)
   }
 
-  for i := 0; i < len(cur.key); i++ {
-    if compare(cur.key[i], key) == 0{
+  for i := 0; i < len(leaf.key); i++ {
+    if compare(leaf.key[i], key) == 0{
       return leaf.pointers[index].asValue(), nil
     }
   }
@@ -209,7 +209,7 @@ func (t *BPTree) findLeaf(key []byte) (*node, error) {
 }
 
 
-func (t *BPTree) findLeafToInsert(key []byte) *node, error {
+func (t *BPTree) findLeafToInsert(key []byte) (*node, error) {
 
   // load root node, if it has t.Order - 1
   // split the root.
@@ -312,7 +312,7 @@ func (t *BPTree) splitRoot() error {
 
   // change properties of newRoot and current Root.
   
-  err := splitNode(curRoot, newRoot)
+  err := t.splitNode(curRoot, newRoot)
   if err != nil {
     // revert changes to current root
     curRoot.parentId = 0
@@ -387,39 +387,85 @@ func (t *BPTree) splitNode(cur *node, parent *node) error {
     child.pointers = child.pointesr[:t.minKeyNum]
   }
 
-  // have to insert newNode to parent as well innit.
-
-  // move seperator to parent.
+  // move seperator and newNode to parent.
   index, err := findChildIndex(parent)
   if err != nil {
     return fmt.Errorf("Error finding child index : %w", err)
   }
 
-  err := insertNodeAt(parent, Index, seperator)
+  err := insertKeyAt(parent, Index, seperator)
   if err != nil {
     return fmt.Errorf("Error inserting sepeartor into parent")
   }
 
+  err := insertNodeAt(parent,Index+1, newNode)
+  if err != nil {
+    return fmt.Errorf("Error inserting newNode as a child into parent.")
+  }
+
+  err := t.storage.updateNode(newNode)
+  if err != nil {
+    return fmt.Errorf("Error updating newly created Node : %w", err)
+  }
+  err := t.storage.updateNode(child)
+  if err != nil {
+    return fmt.Errorf("Error updating child node : %w", err)
+  }
+  err := t.storage.updateNode(parent)
+  if err != nil {
+    return fmt.Errorf("Error updating parent node : %w", err)
+  }
+
+}
+
+func (t *BPTree) insertKeyAt(cur *node, index int, key []byte) error {
+  if len(cur.key) == t.order - 1{
+    return fmt.Errorf("Cannot insert into node as it is full.")
+  }
+
+  // increase size of keys in cur node by 1.
+  // use copy function to copy the keys into correct place.
+  cur.key = append(cur.key, 0)
+  copy(cur.key[index+1:], cur.key[index:])
+  cur.key[index] = key
+
+  return nil
 }
 
 func (t *BPTree) insertValueAt(cur *node, index int, value []byte) error {
-  if len(cur.key) == t.order - 1 {
+  if len(cur.pointers) == t.order - 1 {
     return fmt.Errorf("Cannot insert value, node is full")
   }
 
-  // write the value to storage.
+  cur.pointers = append(cur.pointers, 0)
+  copy(cur.pointers[index+1:], cur.pointers[index:])
+  cur.pointers[index] = pointer(value)
+
+  return nil
 }
 
 func (t *BPTree) insertNodeAt(cur *node, index int, child uint32) error {
-  if len(cur.key) == t.order - 1 {
-    return fmt.Errorf("Cannot insert value, node is full")
+  if len(cur.pointers) == t.order {
+    return fmt.Errorf("Cannot insert node, node is full")
   }
 
-  // write the node to stoarge.
+  cur.pointers = append(cur.pointers, 0)
+  copy(cur.pointers[index+1:], cur.pointers[index:])
+  cur.pointers[index] = pointer(child)
+
+  return nil
 }
 
 func compare(byteA ,byteB []byte) int {
   return bytes.Compare(byteA, byteB)
 }
 
-func calcMinOrder(order uint16) {}
+func calcMinOrder(order uint16) {
+  // minOrder is given by ceil(order/2) - 1
+  d := (order / 2)
+	if order%2 == 0 {
+		return d - 1
+	}
+
+	return d
+}
