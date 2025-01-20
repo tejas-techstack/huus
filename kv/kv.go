@@ -300,7 +300,7 @@ func (t *BPTree) splitRoot() error {
     key : []byte{},
     pointers : []*pointer{pointer(t.rootId)},
     isLeaf : false,
-    sibling : nil,
+    sibling : 0,
   }
 
   curRoot, err := t.storage.loadNode(t.rootId)
