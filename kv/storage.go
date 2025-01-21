@@ -2,8 +2,13 @@
 // Used to store data page wise
 package kv
 
+import (
+  "fmt"
+  "os"
+)
+
 type storage struct {
-  fo *file
+  fo *os.File
 
   pageSize uint16
 
@@ -13,17 +18,26 @@ type storage struct {
   lastPageId uint32
 }
 
-func newStorage (path string, pageSize uint16) (*storage, error){}
-
-func loadMetadata() (*treeMetadata, error) {
-  // read from storage.fo header
-
+func newStorage (path string, pageSize uint16) (*storage, error){
+  return nil, fmt.Errorf("Not yet implemented")
 }
 
-func (s *storage) updateMetaData(nodeId uint32) error {}
+func (s *storage) loadMetadata() (*treeMetaData, error) {
+  return nil, fmt.Errorf("Not yet implemented")
+}
 
-func (s *storage) loadNode(nodeId uint32) (*node, error) {}
+func (s *storage) updateMetaData(nodeId uint32) error {
+  return fmt.Errorf("Not yet implemented")
+}
 
-func (s *storage) updateNode() error {}
+func (s *storage) loadNode(nodeId uint32) (*node, error) {
+  return nil, fmt.Errorf("Not yet implemented")
+}
 
-func (s *storage) newNode() uint32, error {}
+func (s *storage) updateNode(nodeId uint32) error {
+  return fmt.Errorf("Not yet implemented")
+}
+
+func (s *storage) newNode() (uint32, error) {
+  return uint32(0), fmt.Errorf("Not yet implemented")
+}

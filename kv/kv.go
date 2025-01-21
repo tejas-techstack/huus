@@ -41,7 +41,7 @@ func Open(path string) (*BPTree, error) {
   // use to set page size
   pageSize := os.Getpagesize()
 
-  storage, err := newStorage(path, pageSize)
+  storage, err := newStorage(path, uint16(pageSize))
   if err != nil {
     return nil, fmt.Errorf("failed to init the storage: %w", err)
   }
@@ -113,7 +113,7 @@ func (t *BPTree) Get(key []byte) ([]byte, error) {
 
   for i := 0; i < len(leaf.key); i++ {
     if compare(leaf.key[i], key) == 0{
-      return leaf.pointers[index].asValue(), nil
+      return leaf.pointers[i].asValue(), nil
     }
   }
 
@@ -136,7 +136,7 @@ func (t *BPTree) Put(key, value []byte) (error) {
     return fmt.Errorf("Put failed : %w", err)
   }
 
-  err = t.insertIntoNode(leaf,key, pointer(value))
+  err = t.insertIntoNode(leaf,key, &pointer{value})
   if err != nil {
     return fmt.Errorf("Failed to insert into node : %w", err)
   } else {
@@ -148,7 +148,7 @@ func (t *BPTree) Put(key, value []byte) (error) {
 // insert (key, child)
 func (t *BPTree) insertIntoNode(cur *node,key []byte, pointer *pointer) error {
 
-  if len(cur.key) == t.order {
+  if len(cur.key) == int(t.order) {
     return fmt.Errorf("Node is full cannot insert into node.")
   }
 
@@ -162,14 +162,14 @@ func (t *BPTree) insertIntoNode(cur *node,key []byte, pointer *pointer) error {
   }
 
   if pointer.isValue() {
-    err := insertValueAt(cur, index, pointer.asValue())
+    err := t.insertValueAt(cur, index, pointer.asValue())
     if err != nil {
       return fmt.Errorf("Inserting value failed : %w", err)
     }
   }
 
   if pointer.isNodeId() {
-    err := insertNodeAt(cur, index, pointer.asNodeId())
+    err := t.insertNodeAt(cur, index, pointer.asNodeId())
     if err != nil {
       return fmt.Errorf("Inserting node failed : %w", err)
     }
@@ -187,7 +187,7 @@ func (t *BPTree) findLeaf(key []byte) (*node, error) {
 
   */
 
-  node, err := t.storage.loadNode(t.rootId)
+  node, err := t.storage.loadNode(t.metadata.rootId)
   if err != nil {
     return nil, fmt.Errorf("Error loading root : %w", err)
   }
@@ -200,7 +200,10 @@ func (t *BPTree) findLeaf(key []byte) (*node, error) {
     }
 
     childId := node.pointers[index+1].asNodeId()
-    node := t.storage.loadNode(childId)
+    node,err = t.storage.loadNode(childId)
+    if err != nil {
+      return nil, fmt.Errorf("Error loading child : %w", err)
+    }
   }
 
   return node, nil
@@ -216,15 +219,15 @@ func (t *BPTree) findLeafToInsert(key []byte) (*node, error) {
   // keep both parent and child nodes in memory to make adding seperator easier.
   // keep switching the pairs.
   
-  root,err := t.storage.loadNode(t.rootId)
+  root,err := t.storage.loadNode(t.metadata.rootId)
   if err != nil {
-    return fmt.Errorf("Error inserting into leaf : %w", err)
+    return nil, fmt.Errorf("Error inserting into leaf : %w", err)
   }
 
-  if len(root.key) == t.order - 1{
+  if len(root.key) == int(t.order - 1){
     err := t.splitRoot()
     if err != nil {
-      return fmt.Errorf("Error splitting root : %w", err)
+      return nil, fmt.Errorf("Error splitting root : %w", err)
     }
   }
 
@@ -233,17 +236,17 @@ func (t *BPTree) findLeafToInsert(key []byte) (*node, error) {
   // find child returns a loaded child node and error if any.
   child, err := t.findChild(parent, key)
   if err != nil {
-    return fmt.Errorf("Error finding child : %w", err)
+    return nil, fmt.Errorf("Error finding child : %w", err)
   }
 
   for !child.isLeaf{
     parent = child;
     child, err = t.findChild(parent, key)
 
-    if len(child.key) == t.order - 1 {
+    if len(child.key) == int(t.order - 1) {
       err := t.splitNode(parent, child)
       if err != nil {
-        return fmt.Errorf("Error splitting child : %w", err)
+        return nil, fmt.Errorf("Error splitting child : %w", err)
       }
     }
   }
@@ -273,7 +276,7 @@ func (t *BPTree) findChildIndex(cur *node, key []byte) (int, error) {
 func (t *BPTree) findChild(parent *node, key []byte) (*node, error) {
   childIndex, err := t.findChildIndex(parent, key)
   if err != nil {
-    return err
+    return nil, fmt.Errorf("error finding child index")
   }
 
   childId := parent.pointers[childIndex].asNodeId()
@@ -297,20 +300,20 @@ func (t *BPTree) splitRoot() error {
   newRoot := &node {
     id : newRootId,
     parentId : 0,
-    key : []byte{},
-    pointers : []*pointer{pointer(t.rootId)},
+    key : [][]byte{},
+    pointers : []*pointer{&pointer{t.metadata.rootId}},
     isLeaf : false,
     sibling : 0,
   }
 
-  curRoot, err := t.storage.loadNode(t.rootId)
+  curRoot, err := t.storage.loadNode(t.metadata.rootId)
   if err != nil {
     return fmt.Errorf("Error loading root node : %w", err)
   }
 
   // change properties of newRoot and current Root.
   
-  err := t.splitNode(curRoot, newRoot)
+  err = t.splitNode(curRoot, newRoot)
   if err != nil {
     // revert changes to current root
     curRoot.parentId = 0
@@ -318,7 +321,7 @@ func (t *BPTree) splitRoot() error {
   }
 
   // update metaData of tree with rootId as newRootId.
-  err := t.updateMetaData(newRoot.id)
+  err = t.storage.updateMetaData(newRoot.id)
   if err != nil {
     return fmt.Errorf("Failed to update metadata : %w", err)
   } else {
@@ -336,9 +339,9 @@ func (t *BPTree) splitNode(cur *node, parent *node) error {
   // find seperator, if leaf, copy up, if not leaf promote up.
   // put seperator in parent.
   // write both parent and cur nodes.
-
+  var err error
   if parent == nil {
-    parent, err := t.storage.loadNode(cur.parentId)
+    parent, err = t.storage.loadNode(cur.parentId)
     if err != nil {
       return fmt.Errorf("Failed to load parent : %w",err)
     }
@@ -350,9 +353,9 @@ func (t *BPTree) splitNode(cur *node, parent *node) error {
   }
 
   newNode := &node {
-    id : newRootId,
+    id : newNodeId,
     parentId : parent.id,
-    key : []byte{},
+    key : [][]byte{},
     pointers : []*pointer{},
     isLeaf : cur.isLeaf,
     sibling : 0,
@@ -379,51 +382,53 @@ func (t *BPTree) splitNode(cur *node, parent *node) error {
     cur.key = cur.key[:t.minKeyNum]
 
     // update child pointers
-    newNode.pointers = append(newNode.pointers, child.pointers[t.minKeyNum :]...)
-    child.pointers = child.pointesr[:t.minKeyNum]
+    newNode.pointers = append(newNode.pointers,cur.pointers[t.minKeyNum :]...)
+    cur.pointers = cur.pointers[:t.minKeyNum]
   }
 
   // move seperator and newNode to parent.
-  index, err := findChildIndex(parent)
+  index, err := t.findChildIndex(parent, seperator)
   if err != nil {
     return fmt.Errorf("Error finding child index : %w", err)
   }
 
-  err := insertKeyAt(parent, index, seperator)
+  err = t.insertKeyAt(parent, index, seperator)
   if err != nil {
-    return fmt.Errorf("Error inserting sepeartor into parent")
+    return fmt.Errorf("Error inserting seperator into parent") 
   }
 
-  err := insertNodeAt(parent,index+1, newNode)
+  err = t.insertNodeAt(parent,index+1, newNode.id)
   if err != nil {
     return fmt.Errorf("Error inserting newNode as a child into parent.")
   }
 
-  err := t.storage.updateNode(newNode)
+  err = t.storage.updateNode(newNode.id)
   if err != nil {
     return fmt.Errorf("Error updating newly created Node : %w", err)
   }
 
-  err := t.storage.updateNode(child)
+  err = t.storage.updateNode(cur.id)
   if err != nil {
     return fmt.Errorf("Error updating child node : %w", err)
   }
 
-  err := t.storage.updateNode(parent)
+  err = t.storage.updateNode(parent.id)
   if err != nil {
     return fmt.Errorf("Error updating parent node : %w", err)
+  } else {
+    return nil
   }
 
 }
 
 func (t *BPTree) insertKeyAt(cur *node, index int, key []byte) error {
-  if len(cur.key) == t.order - 1{
+  if len(cur.key) == int(t.order - 1){
     return fmt.Errorf("Cannot insert into node as it is full.")
   }
 
   // increase size of keys in cur node by 1.
   // use copy function to copy the keys into correct place.
-  cur.key = append(cur.key, 0)
+  cur.key = append(cur.key, []byte{0})
   copy(cur.key[index+1:], cur.key[index:])
   cur.key[index] = key
 
@@ -431,25 +436,25 @@ func (t *BPTree) insertKeyAt(cur *node, index int, key []byte) error {
 }
 
 func (t *BPTree) insertValueAt(cur *node, index int, value []byte) error {
-  if len(cur.pointers) == t.order - 1 {
+  if len(cur.pointers) == int(t.order - 1) {
     return fmt.Errorf("Cannot insert value, node is full")
   }
 
-  cur.pointers = append(cur.pointers, 0)
+  cur.pointers = append(cur.pointers, &pointer{0})
   copy(cur.pointers[index+1:], cur.pointers[index:])
-  cur.pointers[index] = pointer(value)
+  cur.pointers[index] = &pointer{value}
 
   return nil
 }
 
 func (t *BPTree) insertNodeAt(cur *node, index int, child uint32) error {
-  if len(cur.pointers) == t.order {
+  if len(cur.pointers) == int(t.order) {
     return fmt.Errorf("Cannot insert node, node is full")
   }
 
-  cur.pointers = append(cur.pointers, 0)
+  cur.pointers = append(cur.pointers, &pointer{0})
   copy(cur.pointers[index+1:], cur.pointers[index:])
-  cur.pointers[index] = pointer(child)
+  cur.pointers[index] = &pointer{child}
 
   return nil
 }
@@ -458,12 +463,12 @@ func compare(byteA ,byteB []byte) int {
   return bytes.Compare(byteA, byteB)
 }
 
-func calcMinOrder(order uint16) {
+func calcMinOrder(order uint16) int {
   // minOrder is given by ceil(order/2) - 1
   d := (order / 2)
 	if order%2 == 0 {
-		return d - 1
+		return int(d - 1)
 	}
 
-	return d
+	return int(d)
 }

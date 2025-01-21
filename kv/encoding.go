@@ -16,7 +16,7 @@ import (
 // sibling : uint32
 
 func encodeUint16(val uint16) []byte {
-  data [2]byte
+  var data [2]byte
 
   binary.BigEndian.PutUint16(data[:], val)
 
@@ -28,7 +28,7 @@ func decodeUint16(data []byte) uint16 {
 }
 
 func encodeUint32(val uint32) []byte {
-  data [4]byte
+  var data [4]byte
 
   binary.BigEndian.PutUint32(data[:], val)
 
@@ -40,7 +40,7 @@ func decodeUint32(data []byte) uint32 {
 }
 
 func encodeBool(val bool) []byte {
-  data [1]byte
+  var data [1]byte
 
   if val {
     data[0] = 1
@@ -52,41 +52,42 @@ func encodeBool(val bool) []byte {
 }
 
 func decodeBool(data []byte) bool {
-  if data[0] {
+  if data[0] == 1{
     return true
   } else {
     return false
   }
 }
 
-func encodeNode(node *node) []byte {
+func encodeNode(curr *node) []byte {
   data := make([]byte, 0)
 
-  data = append(data, encodeUint32(node.id))
-  data = append(data, encodeUint32(node.parentId))
-  data = append(data, encodeBool(node.isLeaf))
+  data = append(data, encodeUint32(curr.id)...)
+  data = append(data, encodeUint32(curr.parentId)...)
+  data = append(data, encodeBool(curr.isLeaf)...)
 
   // number of keys to read.
-  data = append(data, encodeUint32(uint32(len(node.key))))
-  for i:=0; i<len(node.key); i++ {
-    data = append(data, encodeUint16(uint16(node.key[i]...)))
+  data = append(data, encodeUint32(uint32(len(curr.key)))...)
+  for i:=0; i<len(curr.key); i++ {
+    data = append(data, encodeUint32(uint32(len(curr.key[i])))...)
+    data = append(data, curr.key[i]...)
   }
 
-  data = append(data, encodeUint32(uint32(len(node.pointers))))
+  data = append(data, encodeUint32(uint32(len(curr.pointers)))...)
 
-  if node.isLeaf {
-    for i:=0; i<len(node.pointers); i++ {
+  if curr.isLeaf {
+    for i:=0; i<len(curr.pointers); i++ {
       // encode length of value and then encode value.
-      data = append(data, encodeUint16(uint16(len(pointers[i].asValue()...))))
-      data = append(data, node.pointers[i].asValue()...)
+      data = append(data, encodeUint16(uint16(len(curr.pointers[i].asValue())))...)
+      data = append(data, curr.pointers[i].asValue()...)
     }
   } else {
-    for i:=0; i<len(node.pointers); i++ {
-      data = append(data, encodeUint32(node.pointers[i].asNodeId()))
+    for i:=0; i<len(curr.pointers); i++ {
+      data = append(data, encodeUint32(curr.pointers[i].asNodeId())...)
     }
   }
 
-  data = append(data, encodeUint32(node.sibling))
+  data = append(data, encodeUint32(curr.sibling)...)
 
   return data[:]
 }
@@ -101,31 +102,56 @@ func decodeNode(data []byte) *node {
   isLeaf := decodeBool(data[pos: pos+1])
   pos += 1
 
-  keyNum := decodeUint32(data[pos:pos+4])
+  keyNum := int(decodeUint32(data[pos:pos+4]))
   pos += 4
 
-  key := make([]byte, 0)
+  key := make([][]byte, 0)
   for i:=0; i < keyNum; i++ {
-    key = append(decodeUint16(data[pos:pos + 2]))
-    pos += 2
+    keyLen := int(decodeUint32(data[pos: pos+4]))
+    pos += 4
+    key = append(key, data[pos:pos+keyLen])
+    pos += keyLen
   }
 
-  pointerNum := decodeUint32(data[pos:pos+4])
+  pointerNum := int(decodeUint32(data[pos:pos+4]))
   pos += 4
 
   pointers := make([]*pointer, 0)
-  if newNode.isLeaf {
-    var varValLen int
+  if isLeaf {
     for i := 0; i < pointerNum; i++ {
-      valLen := decodeUint16(data[pos:pos+2])
+      valLen := int(decodeUint16(data[pos:pos+2]))
       pos += 2
-      pointers := append(pointers, data[])
+
+      value := data[pos : pos+valLen]
+      pos += valLen
+
+      pointers = append(pointers, &pointer{value})
+    }
+  } else {
+    // node is not a leaf.
+    for i := 0; i < pointerNum; i++ {
+    
+      childId := decodeUint32(data[pos: pos+4])
+      pos += 4
+
+      pointers = append(pointers, &pointer{childId})
     }
   }
 
+  sibling := decodeUint32(data[pos: pos+4])
 
+  newNode := &node{
+    id : id,
+    parentId: parentId,
+    isLeaf : isLeaf,
+    key : key,
+    pointers : pointers,
+    sibling : sibling, 
+  }
+
+  return newNode
 }
 
-func encodeMetaData(metadata *treeMetaData) []byte {}
+// func encodeMetaData(metadata *treeMetaData) []byte {}
 
-func encodeMetaData(data []byte) *treeMetaData {}
+// func encodeMetaData(data []byte) *treeMetaData {}
