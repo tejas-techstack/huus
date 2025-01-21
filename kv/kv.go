@@ -54,7 +54,7 @@ func Open(path string) (*BPTree, error) {
   } 
 
   if metadata != nil && metadata.order != defaultOrder {
-    return nil, fmt.Errorf("Tried to open a tree with order %w, but has order %w", metadata.order, defaultOrder)
+    return nil, fmt.Errorf("Tried to open a tree with order %v, but has order %v", metadata.order, defaultOrder)
   }
 
   minKeyNum := calcMinOrder(metadata.order)

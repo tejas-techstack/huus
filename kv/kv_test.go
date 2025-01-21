@@ -2,7 +2,6 @@ package kv
 
 import (
   "testing"
-  "os"
 )
 
 // function to create test tree in TempDir

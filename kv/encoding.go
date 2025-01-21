@@ -92,7 +92,7 @@ func encodeNode(curr *node) []byte {
   return data[:]
 }
 
-func decodeNode(data []byte) *node {
+func decodeNode(data []byte) (*node, error) {
   pos := 0
 
   id := decodeUint32(data[pos: pos+4])
@@ -149,9 +149,29 @@ func decodeNode(data []byte) *node {
     sibling : sibling, 
   }
 
-  return newNode
+  return newNode, nil
 }
 
-// func encodeMetaData(metadata *treeMetaData) []byte {}
+func encodeMetaData(metadata *treeMetaData) []byte {
+  var data []byte
 
-// func encodeMetaData(data []byte) *treeMetaData {}
+  data = append(data, encodeUint16(metadata.order)...)
+  data = append(data, encodeUint32(metadata.rootId)...)
+  data = append(data, encodeUint16(metadata.pageSize)...)
+
+  return data
+}
+
+func decodeMetaData(data []byte) (*treeMetaData, error) {
+  order := decodeUint16(data[0:2])
+  rootId := decodeUint32(data[2:6])
+  pageSize := decodeUint16(data[6:8])
+
+  metadata := &treeMetaData{
+    order,
+    rootId,
+    pageSize,
+  }
+
+  return metadata, nil
+}
