@@ -58,12 +58,44 @@ func newStorage (path string, pageSize uint16) (*storage, error){
   }
 
   if info.Size() == 0 {
-    // file is empty, need to initilaize new tree.
+    // file is empty, need to initialize:
+    
+    // metadata is basically a copy of the storage.
+    // that will be written to the file.
+    // the lastPageId is not passed to writeMetadata
+    // since it is defined based on the contents of the file.
+    
+    storage := &storage{
+      fo : fo,
+      pageSize : pageSize,
+      freePages: nil,
+      lastPageId : 0,
+      metadata : &storageMetadata{pageSize, nil,},
+    }
+
+    if err := s.writeMetadata(); err != nil {
+      return nil, fmt.Errorf("Error Writing metadata")
+    }
+
+    freePages, err := initializeFreePages(storage)
+    if err != nil {
+      return nil, fmt.Errorf("Error initializing free pages")
+    }
+
+    if err := storage.flush(); err != nil {
+      return nil, fmt.Errorf("Error flushing the file.")
+    }
   }
+
 
 
   return nil, fmt.Errorf("Not yet implemented")
 
+}
+
+func (s *storage) writeMetadata() error {
+
+  return fmt.Errorf("Not yet implemented")
 }
 
 func (s *storage) loadMetadata() (*treeMetaData, error) {
@@ -118,4 +150,12 @@ func (s *storage) newNode() (uint32, error) {
   // load the node into this free page, return the nodeId
 
   return uint32(0), fmt.Errorf("Not yet implemented")
+}
+
+func (s *storage) flush() error {          i
+  if err := s.fo.Flush(); err != nil {
+    return fmt.Errorf("Error flushing the file : %w",err)
+  }
+
+  return nil
 }
