@@ -19,6 +19,8 @@ type storage struct {
   // maintain array of freepages.
   freePages []uint32
 
+  // last page id is basically used to store
+  // the last offset of the file.
   lastPageId uint32
 
   metadata *storageMetadata
@@ -65,36 +67,54 @@ func newStorage (path string, pageSize uint16) (*storage, error){
     // the lastPageId is not passed to writeMetadata
     // since it is defined based on the contents of the file.
     
-    storage := &storage{
+    s := &storage{
       fo : fo,
       pageSize : pageSize,
       freePages: nil,
       lastPageId : 0,
       metadata : &storageMetadata{pageSize, nil,},
     }
-
-    if err := s.writeMetadata(); err != nil {
+   
+    if err := s.writeStorageMetadata(); err != nil {
       return nil, fmt.Errorf("Error Writing metadata")
     }
 
-    freePages, err := initializeFreePages(storage)
+    freePages, err := s.initializeFreePages()
     if err != nil {
       return nil, fmt.Errorf("Error initializing free pages")
     }
 
-    if err := storage.flush(); err != nil {
+    if err := s.flush(); err != nil {
       return nil, fmt.Errorf("Error flushing the file.")
     }
   }
 
+  metadata, err := s.readStorageMetadata()
+  if err != nil {
+    return fmt.Errorf("Error reading storage metadata : %w",err)
+  }
+
+  freePages,err := s.readFreePages()
+  if err != nil {
+    return fmt.Errorf("Error reading free pages : %w" ,err)
+  }
 
 
-  return nil, fmt.Errorf("Not yet implemented")
+  // TODO fix this. 
+  lastPageId, err := s.getLastPageId()
+  if err != nil {
+    return fmt.Errorf("Error loading lastPageId : %w", err)
+  }
 
+  return &storage{fo, pageSize, freePages, lastPageId, metadata}, nil
 }
 
-func (s *storage) writeMetadata() error {
+func (s *storage) writeStorageMetadata() error {
 
+  return fmt.Errorf("Not yet implemented")
+}
+
+func (s *storage) readStorageMetadata() error {
   return fmt.Errorf("Not yet implemented")
 }
 
