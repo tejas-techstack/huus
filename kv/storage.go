@@ -76,16 +76,16 @@ func newStorage (path string, pageSize uint16) (*storage, error){
     }
    
     if err := s.writeStorageMetadata(); err != nil {
-      return nil, fmt.Errorf("Error Writing metadata")
+      return nil, fmt.Errorf("Error Writing metadata : %w", err)
     }
 
     err := s.initializeFreePages()
     if err != nil {
-      return nil, fmt.Errorf("Error initializing free pages")
+      return nil, fmt.Errorf("Error initializing free pages : %w", err)
     }
 
     if err := s.flush(); err != nil {
-      return nil, fmt.Errorf("Error flushing the file.")
+      return nil, fmt.Errorf("Error flushing the file : %w", err)
     }
 
     return s, nil
@@ -225,7 +225,12 @@ func (s *storage) newNode() (uint32, error) {
     }
   }
 
-  return uint32(0), fmt.Errorf("Not yet implemented")
+  err = s.flush()
+  if err != nil {
+    return uint32(0), fmt.Errorf("Error flushing : %w", err)
+  }
+
+  return newNodeId, nil
 }
 
 func (s *storage) flush() error {
