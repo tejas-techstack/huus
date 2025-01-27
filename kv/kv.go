@@ -1,7 +1,6 @@
 package kv
 
 import (
-  "os"
   "fmt"
   "math"
   "bytes"
@@ -148,6 +147,9 @@ func (t *BPTree) Put(key, value []byte) (error) {
   }
 }
 
+func (t *BPTree) initializeRoot() error {
+  return fmt.Errorf("Not yet implemented initialize root.")
+}
 
 // insert (key, child)
 func (t *BPTree) insertIntoNode(cur *node,key []byte, pointer *pointer) error {
@@ -406,17 +408,17 @@ func (t *BPTree) splitNode(cur *node, parent *node) error {
     return fmt.Errorf("Error inserting newNode as a child into parent.")
   }
 
-  err = t.storage.updateNode(newNode.id)
+  err = t.storage.updateNode(newNode)
   if err != nil {
     return fmt.Errorf("Error updating newly created Node : %w", err)
   }
 
-  err = t.storage.updateNode(cur.id)
+  err = t.storage.updateNode(cur)
   if err != nil {
     return fmt.Errorf("Error updating child node : %w", err)
   }
 
-  err = t.storage.updateNode(parent.id)
+  err = t.storage.updateNode(parent)
   if err != nil {
     return fmt.Errorf("Error updating parent node : %w", err)
   } else {

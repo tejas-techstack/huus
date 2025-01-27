@@ -8,7 +8,7 @@ import (
 )
 
 // define the maximum size of metadata as 1000 bytes.
-const metadataSize 1000
+const metadataSize=1000
 
 
 type storage struct {
@@ -56,7 +56,7 @@ func newStorage (path string, pageSize uint16) (*storage, error){
 
   info, err := fo.Stat()
   if err != nil {
-    return fmt.Errorf("Error trying to stat the file : %w", err)
+    return nil, fmt.Errorf("Error trying to stat the file : %w", err)
   }
 
   if info.Size() == 0 {
@@ -79,7 +79,7 @@ func newStorage (path string, pageSize uint16) (*storage, error){
       return nil, fmt.Errorf("Error Writing metadata")
     }
 
-    freePages, err := s.initializeFreePages()
+    err := s.initializeFreePages()
     if err != nil {
       return nil, fmt.Errorf("Error initializing free pages")
     }
@@ -87,26 +87,32 @@ func newStorage (path string, pageSize uint16) (*storage, error){
     if err := s.flush(); err != nil {
       return nil, fmt.Errorf("Error flushing the file.")
     }
+
+    return s, nil
   }
 
-  metadata, err := s.readStorageMetadata()
+  metadata, err := readStorageMetadata()
   if err != nil {
-    return fmt.Errorf("Error reading storage metadata : %w",err)
+    return nil, fmt.Errorf("Error reading storage metadata : %w",err)
   }
 
-  freePages,err := s.readFreePages()
+  freePages,err := readFreePages()
   if err != nil {
-    return fmt.Errorf("Error reading free pages : %w" ,err)
+    return nil, fmt.Errorf("Error reading free pages : %w" ,err)
   }
 
 
-  // TODO fix this. 
-  lastPageId, err := s.getLastPageId()
+  // TODO fix this.
+  lastPageId, err := getLastPageId()
   if err != nil {
-    return fmt.Errorf("Error loading lastPageId : %w", err)
+    return nil, fmt.Errorf("Error loading lastPageId : %w", err)
   }
 
   return &storage{fo, pageSize, freePages, lastPageId, metadata}, nil
+}
+
+func (s *storage) initializeFreePages() error {
+  return fmt.Errorf("Not yet implemented")
 }
 
 func (s *storage) writeStorageMetadata() error {
@@ -114,8 +120,16 @@ func (s *storage) writeStorageMetadata() error {
   return fmt.Errorf("Not yet implemented")
 }
 
-func (s *storage) readStorageMetadata() error {
-  return fmt.Errorf("Not yet implemented")
+func readStorageMetadata() (*storageMetadata, error) {
+  return nil, fmt.Errorf("Not yet implemented")
+}
+
+func readFreePages() ([]uint32, error) {
+  return nil, fmt.Errorf("Not yet implemented")
+}
+
+func getLastPageId() (uint32, error) {
+  return uint32(0), fmt.Errorf("Not yet implemented")
 }
 
 func (s *storage) loadMetadata() (*treeMetaData, error) {
@@ -156,25 +170,25 @@ func (s *storage) loadNode(nodeId uint32) (*node, error) {
   offset := (int(nodeId) * int(s.pageSize)) + metadataSize
 
   data := make([]byte, int(s.pageSize))
-  _, err := s.fo.ReadAt(data, offset)
+  _, err := s.fo.ReadAt(data, int64(offset))
   if err != nil {
-    return fmt.Errorf("Error reading file")
+    return nil, fmt.Errorf("Error reading file")
   }
 
   dataLen := len(data)
 
-  nextPageId, err := decodeUint32(data[dataLen-4:])
+  nextPageId := decodeUint32(data[dataLen-4:])
   data = data[:dataLen-4]
   for nextPageId != uint32(0) {
     tempData := make([]byte, int(s.pageSize))
-    _, err := s.fo.ReadAt(data, nextPageId)
+    _, err := s.fo.ReadAt(data, int64(nextPageId))
     if err != nil {
       return nil, fmt.Errorf("error reading file : %w", err)
     }
     nextPageId = decodeUint32(tempData[dataLen-4:])
     tempData = tempData[:dataLen-4]
 
-    data = append(data, tempData)
+    data = append(data, tempData...)
   }
 
   node, err := decodeNode(data)
@@ -195,15 +209,27 @@ func (s *storage) updateNode(cur *node) error {
 
 func (s *storage) newNode() (uint32, error) {
 
-  // create a node with empty data,
-  // get a free page from the existing free pages.
-  // load the node into this free page, return the nodeId
+  // as of right now a new node is always assigned from the end of the file.
+  // later on shift it to making it link with exisiting freePageIds.
+  newNodeId := s.lastPageId
+  s.lastPageId++
+
+  data := make([]byte, s.pageSize)
+  offset := (int(newNodeId) * int(s.pageSize)) + metadataSize
+  n, err := s.fo.WriteAt(data, int64(offset))
+  if err != nil {
+    return uint32(0), fmt.Errorf("Error writing to file :%w",err)
+  } else {
+    if n != len(data) {
+      return uint32(0), fmt.Errorf("Had to write %d, only wrote %d", len(data), n)
+    }
+  }
 
   return uint32(0), fmt.Errorf("Not yet implemented")
 }
 
-func (s *storage) flush() error {          i
-  if err := s.fo.Flush(); err != nil {
+func (s *storage) flush() error {
+  if err := s.fo.Sync(); err != nil {
     return fmt.Errorf("Error flushing the file : %w",err)
   }
 
