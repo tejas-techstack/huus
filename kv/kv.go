@@ -1,7 +1,6 @@
 package kv
 
 import (
-  "os"
   "fmt"
   "math"
   "bytes"
@@ -34,14 +33,14 @@ type treeMetaData struct {
 }
 
 // Open either opens a new tree or loads a pre existing tree.
-func Open(path string) (*BPTree, error) {
+func Open(path string, order uint16, pageSize uint16) (*BPTree, error) {
   // replace defaultOrder with user selected order
   // replace pageSize with user selected pageSize
 
   // use to set page size
-  pageSize := os.Getpagesize()
+  // pageSizeOfSystem := os.Getpagesize()
 
-  storage, err := newStorage(path, uint16(pageSize))
+  storage, err := newStorage(path, pageSize)
   if err != nil {
     return nil, fmt.Errorf("failed to init the storage: %w", err)
   }
@@ -53,13 +52,14 @@ func Open(path string) (*BPTree, error) {
     return nil, fmt.Errorf("failed to init the metadata: %w", err)
   } 
 
-  if metadata != nil && metadata.order != defaultOrder {
+  // metdata != nil takes care of the case 
+  // where the tree is not yet initialized.
+  if metadata != nil && metadata.order != order {
     return nil, fmt.Errorf("Tried to open a tree with order %v, but has order %v", metadata.order, defaultOrder)
   }
+  minKeyNum := calcMinOrder(order)
 
-  minKeyNum := calcMinOrder(metadata.order)
-
-  return &BPTree{order : metadata.order, storage : storage, metadata : metadata, minKeyNum : minKeyNum}, nil
+  return &BPTree{order : order, storage : storage, metadata : metadata, minKeyNum : minKeyNum}, nil
 }
 
 type node struct {
@@ -123,7 +123,10 @@ func (t *BPTree) Get(key []byte) ([]byte, error) {
 
 func (t *BPTree) Put(key, value []byte) (error) {
   if t.metadata == nil {
-    return fmt.Errorf("Tree not initialized")
+    err := t.initializeRoot()
+    if err != nil {
+      return fmt.Errorf("Error initializing root : %w", err)
+    }
   }
 
   if len(value) > maxPageSize {
@@ -144,6 +147,9 @@ func (t *BPTree) Put(key, value []byte) (error) {
   }
 }
 
+func (t *BPTree) initializeRoot() error {
+  return fmt.Errorf("Not yet implemented initialize root.")
+}
 
 // insert (key, child)
 func (t *BPTree) insertIntoNode(cur *node,key []byte, pointer *pointer) error {
@@ -402,17 +408,17 @@ func (t *BPTree) splitNode(cur *node, parent *node) error {
     return fmt.Errorf("Error inserting newNode as a child into parent.")
   }
 
-  err = t.storage.updateNode(newNode.id)
+  err = t.storage.updateNode(newNode)
   if err != nil {
     return fmt.Errorf("Error updating newly created Node : %w", err)
   }
 
-  err = t.storage.updateNode(cur.id)
+  err = t.storage.updateNode(cur)
   if err != nil {
     return fmt.Errorf("Error updating child node : %w", err)
   }
 
-  err = t.storage.updateNode(parent.id)
+  err = t.storage.updateNode(parent)
   if err != nil {
     return fmt.Errorf("Error updating parent node : %w", err)
   } else {
