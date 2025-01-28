@@ -155,18 +155,8 @@ func (s *storage) updateMetaData(newRootId uint32) error {
   return fmt.Errorf("Not yet implemented")
 }
 
-func (s *storage) loadNode(nodeId uint32) (*node, error) {
-  // the nodeId itself represents the pageId.
-  // calculate the offset from this pageId and then
-  // read the data from that pageId.
-  // in the data read, the last 4 bytes contain either 0, or
-  // it contains the next pageId, if the nextPage Id is non zero,
-  // read from that page Id as well and then keep chaining until the
-  // data is not fully read.
-  // once read decode the data as a node and return it.
+func (s *storage) loadNodeRaw(nodeId uint32) ([]byte, error) {
 
-  // pageId 1 : always will start at 1001 byte 
-  // since 1000 bytes are reserved for metadata.
   offset := (int(nodeId) * int(s.pageSize)) + metadataSize
 
   data := make([]byte, int(s.pageSize))
@@ -175,34 +165,46 @@ func (s *storage) loadNode(nodeId uint32) (*node, error) {
     return nil, fmt.Errorf("Error reading file")
   }
 
-  dataLen := len(data)
-
-  nextPageId := decodeUint32(data[dataLen-4:])
-  data = data[:dataLen-4]
+  nextPageId := decodeUint32(data[0:4])
+  data = data[4:]
   for nextPageId != uint32(0) {
     tempData := make([]byte, int(s.pageSize))
     _, err := s.fo.ReadAt(data, int64(nextPageId))
     if err != nil {
       return nil, fmt.Errorf("error reading file : %w", err)
     }
-    nextPageId = decodeUint32(tempData[dataLen-4:])
-    tempData = tempData[:dataLen-4]
+    nextPageId = decodeUint32(tempData[0:4])
+    tempData = tempData[4:]
 
     data = append(data, tempData...)
   }
 
-  node, err := decodeNode(data)
+
+  return data, nil
+}
+
+func (s *storage) loadNode(nodeId uint32) (*node, error) {
+  data, err := s.loadNodeRaw(nodeId)
   if err != nil {
-    return nil, fmt.Errorf("Error decoding node : %w", err)
+    return nil, fmt.Errorf("Error loading raw node data : %w", err)
   }
 
+  node, _ := decodeNode(data)
   return node, nil
 }
 
 func (s *storage) updateNode(cur *node) error {
 
-  // using the node id search for the node
-  // get the offset and write to this offset.
+  // read the node, mark all the pageIds used.
+  // 2 cases :
+  // cur size > currently used pages. 
+  // cur size < currently used pages.
+  // 3rd case :
+  // cur size = number of currently used pages. (less work.)
+  // curId := cur.id
+  // data := encodeNode(cur)
+
+
 
   return fmt.Errorf("Not yet implemented")
 }
@@ -215,6 +217,8 @@ func (s *storage) newNode() (uint32, error) {
   s.lastPageId++
 
   data := make([]byte, s.pageSize)
+  copy(data[4:8], encodeUint32(newNodeId))
+
   offset := (int(newNodeId) * int(s.pageSize)) + metadataSize
   n, err := s.fo.WriteAt(data, int64(offset))
   if err != nil {

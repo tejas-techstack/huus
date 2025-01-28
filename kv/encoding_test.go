@@ -22,21 +22,13 @@ func TestEncodeNode(t *testing.T) {
     sibling : uint32(16),
   }
 
-  t.Log("Test Node:")
-  t.Log(newNode)
-
   encoded := encodeNode(newNode)
-
-  t.Log("Encoded Node:")
-  t.Log(encoded)
-
   decoded, err := decodeNode(encoded)
   if err != nil {
     t.Fatalf("failed to decode node : %s", err)
   }
 
-  t.Log("Decoded Node:")
-  t.Log(decoded)
+  t.Log("Decoded Node:", decoded)
 }
 
 func TestEncodeMetaData(t *testing.T) {
@@ -46,19 +38,11 @@ func TestEncodeMetaData(t *testing.T) {
     pageSize : uint16(61),
   }
 
-  t.Log("Test metaData:")
-  t.Log(metadata)
-
   encoded := encodeMetaData(metadata)
-
-  t.Log("Encoded metadata:")
-  t.Log(encoded)
-
   decoded, err := decodeMetaData(encoded)
   if err != nil {
     t.Fatalf("Failed to decode metadata : %s", err)
   }
 
-  t.Log("Decoded metadata")
-  t.Log(decoded)
+  t.Log("Decoded metadata: ", decoded) 
 }
