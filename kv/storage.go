@@ -165,16 +165,18 @@ func (s *storage) loadNodeRaw(nodeId uint32) ([]byte, error) {
     return nil, fmt.Errorf("Error reading file")
   }
 
-  nextPageId := decodeUint32(data[0:4])
-  data = data[4:]
+  
+  nextPageId := decodeUint32(data[4:8])
+  data = data[8:]
   for nextPageId != uint32(0) {
     tempData := make([]byte, int(s.pageSize))
-    _, err := s.fo.ReadAt(data, int64(nextPageId))
+    offset := (int(nextPageId) * int(s.pageSize)) + metadataSize
+    _, err := s.fo.ReadAt(data, int64(offset))
     if err != nil {
       return nil, fmt.Errorf("error reading file : %w", err)
     }
-    nextPageId = decodeUint32(tempData[0:4])
-    tempData = tempData[4:]
+    nextPageId = decodeUint32(tempData[4:8])
+    tempData = tempData[8:]
 
     data = append(data, tempData...)
   }
@@ -184,6 +186,11 @@ func (s *storage) loadNodeRaw(nodeId uint32) ([]byte, error) {
 }
 
 func (s *storage) loadNode(nodeId uint32) (*node, error) {
+
+  if s.isFreePage(nodeId) == true {
+    return nil, fmt.Errorf("Node does not exist.")
+  }
+
   data, err := s.loadNodeRaw(nodeId)
   if err != nil {
     return nil, fmt.Errorf("Error loading raw node data : %w", err)
@@ -195,18 +202,142 @@ func (s *storage) loadNode(nodeId uint32) (*node, error) {
 
 func (s *storage) updateNode(cur *node) error {
 
-  // read the node, mark all the pageIds used.
-  // 2 cases :
-  // cur size > currently used pages. 
-  // cur size < currently used pages.
-  // 3rd case :
-  // cur size = number of currently used pages. (less work.)
-  // curId := cur.id
-  // data := encodeNode(cur)
+  if s.isFreePage(cur.id) == true {
+    return fmt.Errorf("Node does node exist.")
+  }
+
+  curPageId := cur.id
+  data := encodeNode(cur)
+
+  oldData, err := s.loadNodeRaw(curId)
+  if err != nil{
+    return fmt.Errorf("Error loading raw node data : %w", err)
+  }
+
+  if len(oldData) > len(data) {
+
+    /*
+    offset := int64(int(curPageId) * int(s.pageSize) + metadataSize)
+    nextPageId := decodeUint32(oldData[4:8])
+    if len(data) < s.pageSize {
+      nextPageId = uint32(0)
+    }
+  
+    dataToWrite := make([]byte, s.pageSize)
+
+    copy(dataToWrite[0:4], encodeUint32(curPageId))
+    copy(dataToWrite[4:8], encodeUint32(nextPageId))
+    dataToWrite := data[:s.pageSize-8]
+    data = data[s.pageSize-8:]
+    
+    n, err := s.fo.WriteAt(dataToWrite, offset)
+    if err != nil {
+      return fmt.Errorf("Error writing to file : %w", err)
+    } else {
+      if n != len(dataToWrite) {
+        return fmt.Errorf("Error writing to file, bytes written : %d, bytes supposed to be written : %d", n , len(dataToWrite))
+      }
+    }
+
+    */
+
+    nextPageData, err := s.readPageData(cur.id)
+    if err != nil {
+      return fmt.Errorf("Error reading page data : %w", err)
+    }
 
 
+
+    for nextPageId != uint32(0) {
+      curPageId := nextPageId
+
+      nextPageData, err := s.readPageData(nextPageId)
+      if err != nil {
+        return fmt.Errorf("Error reading page : %w" ,err)
+      }
+
+      nextPageId = decodeUint32(nextPageData[4:8])
+      offset = int64(int(curPageId) * int(s.pageSize) + metadataSize)
+
+      copy(dataToWrite[0:4], encodeUint32(curPageId))
+      copy(dataToWrite[4:8], encodeUint32(uint32(0)))
+
+      if len(data) < s.pageSize-8 {
+        // reached last page to write.
+        copy(dataToWrite, data)
+        data = []byte{}
+
+        n, err := s.fo.WriteAt(dataToWrite, offset)
+        if err != nil {
+          return fmt.Errorf("Error writing to file : %w", err)
+        } else {
+          if n != len(dataToWrite) {
+            return fmt.Errorf("Content written to file not equal to content given.")
+          }
+        }
+
+        // if number of pages used is same.
+        // this nextPageID will be 0 and 
+        // we can directly return since all node content has been written.
+        if nextPageId == uint32(0) {
+          return nil
+        }
+      } else {
+        dataToWrite = data[:s.pageSize-8]
+        data = data[s.pageSize-8:]
+
+        n, err = s.fo.WriteAt(dataToWrite, offset)
+        if err != nil {
+          return fmt.Errorf("Error writing to file : %w", err)
+        }
+      }
+    }
+    
+    // this block is to free all the 
+    // extra pages if any and then exit.
+    for nextPageId != uint32(0) {
+      nextPageData, err := s.readPageData(nextPageId)
+      if err != nil {
+        return fmt.Errorf("Error reading page : %w", err)
+      }
+
+      err = freePageId(nextPageData)
+      if err != nil {
+        return fmt.Errorf("Error freeing page : %w", err)
+      }
+    }
+
+  // if block ends here.
+  } else {
+    offset := 
+  }
 
   return fmt.Errorf("Not yet implemented")
+}
+
+func (s *storage) readPageData(pageId uint32) ([]byte, error) {
+  if s.isFreePage(pageId) {
+    return nil, fmt.Errorf("Page Id : %d is empty.", pageId)
+  }
+
+  offset := int64(int(pageId) * int(s.pageSize) + metadataSize)
+  pageData := make([]byte, 8)
+  _, err := s.fo.ReadAt(pageData, offset)
+  if err != nil {
+    return nil, fmt.Errorf("Error reading page data : %w", err)
+  }
+
+  return pageData, nil
+}
+
+func (s *storage) isFreePage(nodeId uint32) bool {
+  for i:=0; i<len(s.freePages); i++ {
+    if nodeId == s.freePages[i] {
+      return true
+    }
+  }
+
+  return false
 }
 
 func (s *storage) newNode() (uint32, error) {
@@ -215,9 +346,11 @@ func (s *storage) newNode() (uint32, error) {
   // later on shift it to making it link with exisiting freePageIds.
   newNodeId := s.lastPageId
   s.lastPageId++
+  nextNodeId := uint32(0);
 
   data := make([]byte, s.pageSize)
-  copy(data[4:8], encodeUint32(newNodeId))
+  copy(data[0:4], encodeUint32(newNodeId))
+  copy(data[4:8], encodeUint32(nextNodeId))
 
   offset := (int(newNodeId) * int(s.pageSize)) + metadataSize
   n, err := s.fo.WriteAt(data, int64(offset))
