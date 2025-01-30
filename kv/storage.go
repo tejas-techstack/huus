@@ -166,7 +166,7 @@ func (s *storage) loadNodeRaw(nodeId uint32) ([]byte, error) {
   }
 
   
-  nextPageId := decodeUint32(data[4:8])
+  nextPageId, _ := decodeUint32(data[4:8])
   data = data[8:]
   for nextPageId != uint32(0) {
     tempData := make([]byte, int(s.pageSize))
@@ -175,7 +175,7 @@ func (s *storage) loadNodeRaw(nodeId uint32) ([]byte, error) {
     if err != nil {
       return nil, fmt.Errorf("error reading file : %w", err)
     }
-    nextPageId = decodeUint32(tempData[4:8])
+    nextPageId, _ = decodeUint32(tempData[4:8])
     tempData = tempData[8:]
 
     data = append(data, tempData...)
@@ -209,110 +209,130 @@ func (s *storage) updateNode(cur *node) error {
   curPageId := cur.id
   data := encodeNode(cur)
 
-  oldData, err := s.loadNodeRaw(curId)
+  oldData, err := s.loadNodeRaw(curPageId)
   if err != nil{
     return fmt.Errorf("Error loading raw node data : %w", err)
   }
 
-  if len(oldData) > len(data) {
-
-    /*
-    offset := int64(int(curPageId) * int(s.pageSize) + metadataSize)
-    nextPageId := decodeUint32(oldData[4:8])
-    if len(data) < s.pageSize {
-      nextPageId = uint32(0)
-    }
-  
-    dataToWrite := make([]byte, s.pageSize)
-
-    copy(dataToWrite[0:4], encodeUint32(curPageId))
-    copy(dataToWrite[4:8], encodeUint32(nextPageId))
-    dataToWrite := data[:s.pageSize-8]
-    data = data[s.pageSize-8:]
-    
-    n, err := s.fo.WriteAt(dataToWrite, offset)
-    if err != nil {
-      return fmt.Errorf("Error writing to file : %w", err)
-    } else {
-      if n != len(dataToWrite) {
-        return fmt.Errorf("Error writing to file, bytes written : %d, bytes supposed to be written : %d", n , len(dataToWrite))
-      }
-    }
-
-    */
-
-    nextPageData, err := s.readPageData(cur.id)
-    if err != nil {
-      return fmt.Errorf("Error reading page data : %w", err)
-    }
-
-
-
+  if len(oldData) < len(data) {
+    // new pages may be required.
     for nextPageId != uint32(0) {
-      curPageId := nextPageId
-
-      nextPageData, err := s.readPageData(nextPageId)
+      nextPageData, err := readPageData(curPageId)
       if err != nil {
-        return fmt.Errorf("Error reading page : %w" ,err)
+        return fmt.Errorf("Error reading page data : %w", err)
       }
 
-      nextPageId = decodeUint32(nextPageData[4:8])
-      offset = int64(int(curPageId) * int(s.pageSize) + metadataSize)
-
-      copy(dataToWrite[0:4], encodeUint32(curPageId))
-      copy(dataToWrite[4:8], encodeUint32(uint32(0)))
-
-      if len(data) < s.pageSize-8 {
-        // reached last page to write.
-        copy(dataToWrite, data)
-        data = []byte{}
-
-        n, err := s.fo.WriteAt(dataToWrite, offset)
+      nextPageId, _ := decodeUint32(nextPageData[4:8])
+      if nextPageId == uint32(0) {
+        nextPageId, err = s.newPage()
         if err != nil {
-          return fmt.Errorf("Error writing to file : %w", err)
-        } else {
-          if n != len(dataToWrite) {
-            return fmt.Errorf("Content written to file not equal to content given.")
-          }
+          return fmt.Errorf("Error generating new page : %w", err)
         }
+      }
 
-        // if number of pages used is same.
-        // this nextPageID will be 0 and 
-        // we can directly return since all node content has been written.
-        if nextPageId == uint32(0) {
+      dataToWrite = make([]byte, s.pageSize)
+      copy(dataToWrite[0:4], encodeUint32(curPageId))
+      copy(dataToWrite[4:8], encodeUint32(nextPageId))
+      copy(dataToWrite[8:], data[:s.pageSize-8])
+
+      data = data[s.pageSize-8:]
+
+      err := s.writePage(curPageId, dataToWrite)
+      if err != nil {
+        return fmt.Errorf("Error writing page : %w", err)
+      }
+
+      curPageId = nextPageId
+    }
+
+    curPageId, err = s.newPage()
+    if err != nil {
+      return fmt.Errorf("Error generating new page : %w", err)
+    }
+
+    for len(data) != 0 {
+      nextPageId, err := s.newPage()
+      if err != nil {
+        return fmt.Errorf("Error generating new Page: %w", err)
+      }
+
+      if len(data) < int(s.pageSize-8) {
+        nextPageId := uint32(0)
+      }
+
+      dataToWrite = make([]byte, s.pageSize)
+      copy(dataToWrite[0:4], encodeUint32(curPageId))
+      copy(dataToWrite[4:8], encodeUint32(nextPageId))
+      copy(dataToWrite[8:], data[:s.pageSize-8])
+
+      if len(data) >= int(s.pageSize-8) {
+        data = data[s.pageSize-8:]
+      }
+
+      err := s.writePage(curPageId, dataToWrite)
+      if err != nil {
+        return fmt.Errorf("Error writing page : %w", err)
+      }
+
+      curPageId = nextPageId
+    }
+
+    // if natural exit out of loop, then data has been written properly
+    return nil
+  } else {
+    // no new pages required.
+    // need to free pages.
+   
+    for len(data) != 0 {  
+      nextPageData, err := readPageData(curPageId)
+      if err != nil {
+        return fmt.Errorf("Error reading page data : %w", err)
+      }
+
+      nextPageId, _ := decodeUint32(nextPageData[4:8])
+
+      dataToWrite = make([]byte, s.pageSize)
+      copy(dataToWrite[0:4], encodeUint32(curPageId))
+      copy(dataToWrite[4:8], encodeUint32(nextPageId))
+      copy(dataToWrite[8:], data[:s.pageSize-8])
+
+      if len(data) >= int(s.pageSize-8) {
+        data = data[s.pageSize-8:]
+      }
+
+      err := s.writePage(curPageId, dataToWrite)
+      if err != nil {
+        return fmt.Errorf("Error writing page : %w", err)
+      }
+
+      curPageId = nextPageId
+      if curPageId == uint32(0) {
+        if len(data) != 0 {
+          return fmt.Errorf("Some error occured while handling chaining pages.")
+        } else {
           return nil
         }
-      } else {
-        dataToWrite = data[:s.pageSize-8]
-        data = data[s.pageSize-8:]
-
-        n, err = s.fo.WriteAt(dataToWrite, offset)
-        if err != nil {
-          return fmt.Errorf("Error writing to file : %w", err)
-        }
-      }
-    }
-    
-    // this block is to free all the 
-    // extra pages if any and then exit.
-    for nextPageId != uint32(0) {
-      nextPageData, err := s.readPageData(nextPageId)
-      if err != nil {
-        return fmt.Errorf("Error reading page : %w", err)
-      }
-
-      err = freePageId(nextPageData)
-      if err != nil {
-        return fmt.Errorf("Error freeing page : %w", err)
       }
     }
 
-  // if block ends here.
-  } else {
-    offset := 
+    pageToFree := nextPageId
+    for pageToFree != uint32(0) {
+      nextPageData, err = readPageData(pageToFree)
+      if err != nil {
+        return fmt.Errorf("Error reading page data : %w", err);
+      }
+
+      err := s.freeThePage(pageToFree)
+      if err != nil {
+        return fmt.Errorf("Error freeing the page : %w", err)
+      }
+
+      pageToFree, _ = decodeUint32(nextPageData[4:8])
+    }
+
   }
 
-  return fmt.Errorf("Not yet implemented")
+  return nil
 }
 
 func (s *storage) readPageData(pageId uint32) ([]byte, error) {
@@ -328,6 +348,25 @@ func (s *storage) readPageData(pageId uint32) ([]byte, error) {
   }
 
   return pageData, nil
+}
+
+func (s *storage) writePage(pageId uint32, data []byte) error {
+  if s.isFreePage(pageId) {
+    return fmt.Errorf("Page id : %d is empty", pageId)
+  }
+
+  page := make([]byte, s.pageSize)
+  copy(page, data)
+  
+  offset := int64(int(pageId) * int(s.pageSize) + metadataSize)
+  n, err := s.fo.WriteAt(page, offset)
+  if err != nil {
+    return fmt.Errorf("Error writing to file : %w", err)
+  } else {
+    if n != len(page) {
+      return fmt.Errorf("Wanted to write: %d, wrote : %d", len(page), n)
+    }
+  }
 }
 
 func (s *storage) isFreePage(nodeId uint32) bool {
