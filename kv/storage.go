@@ -165,6 +165,7 @@ func (s *storage) loadNodeRaw(nodeId uint32) ([]byte, error) {
     return nil, fmt.Errorf("Error reading file")
   }
 
+
   
   nextPageId := decodeUint32(data[4:8])
   data = data[8:]
@@ -180,6 +181,7 @@ func (s *storage) loadNodeRaw(nodeId uint32) ([]byte, error) {
 
     data = append(data, tempData...)
   }
+
 
 
   return data, nil
@@ -226,7 +228,6 @@ func (s *storage) updateNode(cur *node) error {
       return fmt.Errorf("Unknown error while writing pages, all pages not initialized properly")
     }
 
-    return nil
 
   } else {
     // no new pages required.
@@ -251,6 +252,11 @@ func (s *storage) updateNode(cur *node) error {
 
       pageToFree = decodeUint32(nextPageData[4:8])
     }
+  }
+
+  err = s.flush()
+  if err != nil {
+    return fmt.Errorf("Error flushing to file : %w", err)
   }
 
   return nil
@@ -354,12 +360,56 @@ func (s *storage) isFreePage(pageId uint32) bool {
 }
 
 func (s *storage) freeThePage(pageId uint32) error {
-  return fmt.Errorf("Not yet implemented")
+  if pageId == uint32(0) {
+    return fmt.Errorf("Page cannot be freed, reserved.")
+  }
+
+  emptyData := make([]byte, s.pageSize)
+
+  err := s.writePage(pageId, emptyData)
+  if err != nil {
+    return fmt.Errorf("Error writing to page : %w", err)
+  }
+
+  err = s.flush()
+  if err != nil {
+    return fmt.Errorf("Error flushing : %w", err)
+  }
+
+  s.freePages = append(s.freePages, pageId)
+
+  return nil
 }
 
 func (s *storage) newPage() (uint32, error) {
   // generates a new page with nextPageId = 0 by default.
-  return uint32(0), fmt.Errorf("Not yet implemented")
+  
+  if len(s.freePages) == 0 {
+    pageId := s.lastPageId
+    s.lastPageId++
+
+    emptyData := make([]byte, int(s.pageSize))
+    err := s.writePage(pageId, emptyData)
+    if err != nil {
+      return uint32(0),fmt.Errorf("Error writing to page : %w", err)
+    }
+
+    err = s.flush()
+    if err != nil {
+      return uint32(0), fmt.Errorf("Error flushing : %w", err)
+    }
+
+    return pageId, nil
+  }
+
+  pageId := s.freePages[len(s.freePages)-1]
+  s.freePages = s.freePages[:len(s.freePages)-1]
+
+  if pageId == uint32(0) {
+    return uint32(0), fmt.Errorf("Error generating new page id for some reason.")
+  }
+
+  return pageId, nil
 }
 
 func (s *storage) newNode() (uint32, error) {
@@ -370,9 +420,19 @@ func (s *storage) newNode() (uint32, error) {
   s.lastPageId++
   nextNodeId := uint32(0);
 
+  newNode := &node{
+    id : newNodeId,
+    parentId : uint32(0),
+    key : nil,
+    pointers : nil,
+    isLeaf : false,
+    sibling : 0,
+  }
+
   data := make([]byte, s.pageSize)
   copy(data[0:4], encodeUint32(newNodeId))
   copy(data[4:8], encodeUint32(nextNodeId))
+  copy(data[8:], encodeNode(newNode))
 
   offset := (int(newNodeId) * int(s.pageSize)) + metadataSize
   n, err := s.fo.WriteAt(data, int64(offset))
