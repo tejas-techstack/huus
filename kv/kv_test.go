@@ -3,6 +3,11 @@ package kv
 import (
   "testing"
 )
+/*
+  "path"
+  "fmt"
+  "os"
+*/
 
 // function to create test tree in TempDir
 func createTestTree() (*BPTree) {
@@ -11,7 +16,25 @@ func createTestTree() (*BPTree) {
 }
 
 // Open(path string) error
-func TestOpen(t *testing.T) {}
+func TestOpen(t *testing.T) {
+  /*
+  dbDir, _ := os.MkdirTemp(os.TempDir(), "example")
+
+  defer func() {
+    if err := os.RemoveAll(dbDir); err != nil {
+      panic(fmt.Errorf("failed to remove %s:%s", dbDir, err))
+    } 
+  }()
+
+  tree, err := Open(path.Join(dbDir, "example.db"), 100, 4096)
+  if err != nil {
+    t.Fatalf("Error opening tree : %s", err)
+  } else {
+    t.Log(tree)
+  }
+*/
+return 
+}
 
 // t.Get(key []byte) ([]byte, error)
 
