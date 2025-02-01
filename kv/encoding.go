@@ -175,3 +175,27 @@ func decodeMetaData(data []byte) (*treeMetaData, error) {
 
   return metadata, nil
 }
+
+func encodeStorageMetadata(md *storageMetadata) []byte {
+  var data []byte
+
+  data = append(data, encodeUint16(md.pageSize)...)
+  data = append(data, encodeUint32(md.lastPageId)...)
+  data = append(data, md.custom...)
+
+  return data
+}
+
+func decodeStorageMetadata(data []byte) *storageMetadata {
+  pageSize := decodeUint16(data[0:2])
+  lastPageId := decodeUint32(data[2:6])
+  custom := data[6:]
+
+  metadata := &storageMetadata{
+    pageSize,
+    lastPageId,
+    custom,
+  }
+
+  return metadata
+}
