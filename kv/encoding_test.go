@@ -38,8 +38,8 @@ func TestEncodeMetaData(t *testing.T) {
     pageSize : uint16(61),
   }
 
-  encoded := encodeMetaData(metadata)
-  decoded, err := decodeMetaData(encoded)
+  encoded := encodeMetadata(metadata)
+  decoded, err := decodeMetadata(encoded)
   if err != nil {
     t.Fatalf("Failed to decode metadata : %s", err)
   }

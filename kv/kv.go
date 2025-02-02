@@ -40,7 +40,7 @@ func Open(path string, order uint16, pageSize uint16) (*BPTree, error) {
   // use to set page size
   // pageSizeOfSystem := os.Getpagesize()
 
-  storage, err := newStorage(path, pageSize)
+  storage, err := newStorage(path, pageSize, order)
   if err != nil {
     return nil, fmt.Errorf("failed to init the storage: %w", err)
   }
@@ -100,30 +100,31 @@ func (p *pointer) asNodeId() uint32 {
   return p.value.(uint32)
 }
 
-// returns (value, err)
-func (t *BPTree) Get(key []byte) ([]byte, error) {
+// returns (value, exists, err)
+func (t *BPTree) Get(key []byte) ([]byte, bool ,error) {
   if t.metadata == nil {
-    return nil, fmt.Errorf("Not initialized")
+    // succeeds even if tree doesnt exist and returns not found.
+    return nil, false, nil
   }
 
   leaf, err := t.findLeaf(key)
   if err != nil {
-    return nil, fmt.Errorf("Could not find leaf : %w", err)
+    return nil, false, fmt.Errorf("Could not find leaf : %w", err)
   }
 
   for i := 0; i < len(leaf.key); i++ {
     if compare(leaf.key[i], key) == 0{
-      return leaf.pointers[i].asValue(), nil
+      return leaf.pointers[i].asValue(), true, nil
     }
   }
 
-  return nil, fmt.Errorf("Key not found error")
+  return nil, false, nil 
 }
 
 
 func (t *BPTree) Put(key, value []byte) (error) {
   if t.metadata == nil {
-    err := t.initializeRoot()
+    err := t.initializeRoot(key, value)
     if err != nil {
       return fmt.Errorf("Error initializing root : %w", err)
     }
@@ -147,8 +148,26 @@ func (t *BPTree) Put(key, value []byte) (error) {
   }
 }
 
-func (t *BPTree) initializeRoot() error {
-  return fmt.Errorf("Not yet implemented initialize root.")
+func (t *BPTree) initializeRoot(key, value []byte) error {
+  rootId, err := t.storage.newNode()
+  if err != nil {
+    return fmt.Errorf("Error creating newNode : %w", err)
+  }
+
+  root, err := t.storage.loadNode(rootId)
+  if err != nil {
+    return fmt.Errorf("Error reading root : %w", err)
+  }
+
+  root.key = append(root.key, key)
+  root.pointers = append(root.pointers, &pointer{value})
+
+  err = t.storage.updateNode(root)
+  if err != nil {
+    return fmt.Errorf("Error updating node : %w", err)
+  } 
+
+  return nil
 }
 
 // insert (key, child)

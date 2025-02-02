@@ -33,7 +33,7 @@ type storageMetadata struct {
   custom []byte
 }
 
-func newStorage (path string, pageSize uint16) (*storage, error){
+func newStorage (path string, pageSize uint16, order uint16) (*storage, error){
 
   fo, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE, 0644)
   if err != nil {
@@ -50,6 +50,7 @@ func newStorage (path string, pageSize uint16) (*storage, error){
   }
 
   if info.Size() == 0 {
+
     s := &storage{
       fo : fo,
       pageSize : pageSize,
@@ -57,7 +58,18 @@ func newStorage (path string, pageSize uint16) (*storage, error){
       lastPageId : 1,
       metadata : &storageMetadata{pageSize, 1, nil,},
     }
- 
+  
+    /*
+    rootId,_ := s.newPage()
+    custom := encodeMetadata(&treeMetaData{
+      order : order,
+      rootId : rootId,
+      pageSize : s.pageSize,
+    })
+
+    s.metadata.custom = custom
+    */
+
     if err := s.writeStorageMetadata(s.metadata); err != nil {
       return nil, fmt.Errorf("Error Writing metadata : %w", err)
     }
@@ -127,7 +139,12 @@ func readStorageMetadata(fo *os.File) (*storageMetadata, error) {
 }
 
 func (s *storage) loadMetadata() (*treeMetaData, error) {
-  return nil, fmt.Errorf("Not yet implemented")
+  if s.metadata.custom == nil {
+    return nil, nil
+  }
+
+  md, _ := decodeMetadata(s.metadata.custom)
+  return md, nil
 }
 
 func (s *storage) updateMetaData(newRootId uint32) error {

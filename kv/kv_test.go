@@ -2,22 +2,14 @@ package kv
 
 import (
   "testing"
-)
-/*
   "path"
   "fmt"
   "os"
-*/
+)
 
-// function to create test tree in TempDir
-func createTestTree() (*BPTree) {
-  // set the config.
-  return nil
-}
 
 // Open(path string) error
 func TestOpen(t *testing.T) {
-  /*
   dbDir, _ := os.MkdirTemp(os.TempDir(), "example")
 
   defer func() {
@@ -29,14 +21,65 @@ func TestOpen(t *testing.T) {
   tree, err := Open(path.Join(dbDir, "example.db"), 100, 4096)
   if err != nil {
     t.Fatalf("Error opening tree : %s", err)
-  } else {
-    t.Log(tree)
   }
-*/
-return 
+
+  t.Log(tree.order, tree.storage, tree.metadata, tree.minKeyNum)
+
 }
 
-// t.Get(key []byte) ([]byte, error)
+func TestGet(t *testing.T) {
+  dbDir, _ := os.MkdirTemp(os.TempDir(), "example")
+
+  defer func() {
+    if err := os.RemoveAll(dbDir); err != nil {
+      panic(fmt.Errorf("failed to remove %s:%s", dbDir, err))
+    } 
+  }()
+
+  tree, err := Open(path.Join(dbDir, "example.db"), 100, 4096)
+  if err != nil {
+    t.Fatalf("Error opening tree : %s", err)
+  }
+
+  key := []byte{1}
+  val, exists, err := tree.Get(key)
+  if err != nil {
+    t.Fatalf("Error getting value : %s", err)
+  }
+
+  if exists {
+    t.Log(val)
+  } else {
+    t.Log("Value does not exist.")
+  }
+
+}
+
+func TestInitRoot(t *testing.T) {
+  dbDir, _ := os.MkdirTemp(os.TempDir(), "example")
+
+  defer func() {
+    if err := os.RemoveAll(dbDir); err != nil {
+      panic(fmt.Errorf("failed to remove %s:%s", dbDir, err))
+    } 
+  }()
+
+  tree, err := Open(path.Join(dbDir, "example.db"), 100, 4096)
+  if err != nil {
+    t.Fatalf("Error opening tree : %s", err)
+  }
+
+  key := []byte{15}
+  val := []byte{18}
+  err = tree.initializeRoot(key, val)
+  if err != nil {
+    t.Fatalf("Error initializing root : %s", err)
+  }
+
+  root, _ := tree.storage.loadNode(tree.metadata.rootId)
+  t.Log(root)
+}
+
 
 // t.Put(key, value []byte) (error) 
 

@@ -152,7 +152,7 @@ func decodeNode(data []byte) (*node, error) {
   return newNode, nil
 }
 
-func encodeMetaData(metadata *treeMetaData) []byte {
+func encodeMetadata(metadata *treeMetaData) []byte {
   var data []byte
 
   data = append(data, encodeUint16(metadata.order)...)
@@ -162,7 +162,7 @@ func encodeMetaData(metadata *treeMetaData) []byte {
   return data
 }
 
-func decodeMetaData(data []byte) (*treeMetaData, error) {
+func decodeMetadata(data []byte) (*treeMetaData, error) {
   order := decodeUint16(data[0:2])
   rootId := decodeUint32(data[2:6])
   pageSize := decodeUint16(data[6:8])

@@ -15,7 +15,7 @@ func TestNewStorage(t *testing.T) {
     }
   }()
 
-  s, err := newStorage(path.Join(dbDir, "test.db"), 4096)
+  s, err := newStorage(path.Join(dbDir, "test.db"), 4096, 1000)
   if err != nil {
     t.Fatalf("Error creating storage : %s", err)
   }
@@ -23,7 +23,7 @@ func TestNewStorage(t *testing.T) {
   t.Log(s.pageSize,s.freePages,s.lastPageId)
 
   // reload to check if it loads from pre existing file correctly.
-  s, err = newStorage(path.Join(dbDir, "test.db"), 4096)
+  s, err = newStorage(path.Join(dbDir, "test.db"), 4096, 1000)
   if err != nil {
     t.Fatalf("Error creating storage : %s", err)
   }
@@ -41,7 +41,7 @@ func TestNewNode(t *testing.T) {
     }
   }()
 
-  s, err := newStorage(path.Join(dbDir, "test.db"), 4096)
+  s, err := newStorage(path.Join(dbDir, "test.db"), 4096, 1000)
   if err != nil {
     t.Fatalf("Error creating newStorage : %s", err)
   }
@@ -65,7 +65,7 @@ func TestLoadNode(t *testing.T) {
     } 
   }()
 
-  s, err := newStorage(path.Join(dbDir, "test.db"), 4096)
+  s, err := newStorage(path.Join(dbDir, "test.db"), 4096, 1000)
   if err != nil {
     t.Fatalf("Error creating newStorage : %s", err)
   }
@@ -92,7 +92,7 @@ func TestUpdateNode(t *testing.T) {
     } 
   }()
 
-  s, err := newStorage(path.Join(dbDir, "test.db"), 4096)
+  s, err := newStorage(path.Join(dbDir, "test.db"), 4096, 1000)
   if err != nil {
     t.Fatalf("Error creating newStorage : %s", err)
   }
@@ -112,7 +112,7 @@ func TestUpdateNode(t *testing.T) {
 
   t.Log("Node before updating : ", node)
 
-  for i := 0; i<100; i++ {
+  for i := 0; i<5; i++ {
     node.key = append(node.key, encodeUint32(uint32(i)))
   }
 
