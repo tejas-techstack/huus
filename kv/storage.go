@@ -147,8 +147,22 @@ func (s *storage) loadMetadata() (*treeMetaData, error) {
   return md, nil
 }
 
-func (s *storage) updateMetaData(newRootId uint32) error {
-  return fmt.Errorf("Not yet implemented")
+func (s *storage) updateMetadata(tmd *treeMetaData) error {
+
+  s.metadata.custom = encodeMetadata(tmd)
+
+  err := s.writeStorageMetadata(s.metadata)
+  if err != nil {
+    return fmt.Errorf("Error updating storage metadata : %w", err)
+  }
+
+  s.metadata, err = readStorageMetadata(s.fo)
+  if err != nil {
+    return fmt.Errorf("Error reading metadata : %w", err)
+  }
+
+  return nil
+  // return fmt.Errorf("Not yet implemented")
 }
 
 func (s *storage) loadNodeRaw(nodeId uint32) ([]byte, error) {

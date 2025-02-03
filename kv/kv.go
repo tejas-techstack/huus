@@ -159,13 +159,25 @@ func (t *BPTree) initializeRoot(key, value []byte) error {
     return fmt.Errorf("Error reading root : %w", err)
   }
 
+  root.isLeaf = true
   root.key = append(root.key, key)
   root.pointers = append(root.pointers, &pointer{value})
 
   err = t.storage.updateNode(root)
   if err != nil {
     return fmt.Errorf("Error updating node : %w", err)
-  } 
+  }
+
+  t.metadata = &treeMetaData{
+    t.order,
+    rootId,
+    t.storage.pageSize,
+  }
+
+  err = t.storage.updateMetadata(t.metadata)
+  if err != nil {
+    return fmt.Errorf("Error updating metadata : %w", err)
+  }
 
   return nil
 }
@@ -346,7 +358,12 @@ func (t *BPTree) splitRoot() error {
   }
 
   // update metaData of tree with rootId as newRootId.
-  err = t.storage.updateMetaData(newRoot.id)
+  t.metadata = &treeMetaData{
+    t.order,
+    newRoot.id,
+    t.storage.pageSize,
+  }
+  err = t.storage.updateMetadata(t.metadata)
   if err != nil {
     return fmt.Errorf("Failed to update metadata : %w", err)
   } else {

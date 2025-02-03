@@ -76,6 +76,8 @@ func TestInitRoot(t *testing.T) {
     t.Fatalf("Error initializing root : %s", err)
   }
 
+
+  // t.Log(tree.storage.metadata)
   root, _ := tree.storage.loadNode(tree.metadata.rootId)
   t.Log(root)
 }
