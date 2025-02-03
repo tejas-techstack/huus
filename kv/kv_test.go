@@ -98,7 +98,7 @@ func TestPut(t *testing.T) {
     t.Fatalf("Error opening tree : %s", err)
   }
 
-  for i := 1; i < 10; i++{
+  for i := 1; i < 5; i++{
     key := []byte{byte(i)}
     val := []byte{byte(i)}
     err = tree.Put(key, val)
@@ -109,12 +109,45 @@ func TestPut(t *testing.T) {
 
   root, _ := tree.storage.loadNode(tree.metadata.rootId)
   
-  for i := 0; i < 9; i++{
+  for i := 0; i < 4; i++{
     key := root.key[i]
     val := root.pointers[i].asValue()
-    t.Logf("%d %d ", key, val)
+    t.Logf("%d %d", key, val)
   }
-  t.Logf("\n")
+}
+
+func TestPutAndGet(t *testing.T) {
+  dbDir, _ := os.MkdirTemp(os.TempDir(), "example")
+
+  defer func() {
+    if err := os.RemoveAll(dbDir); err != nil {
+      panic(fmt.Errorf("failed to remove %s:%s", dbDir, err))
+    } 
+  }()
+
+  tree, err := Open(path.Join(dbDir, "example.db"), 100, 4096)
+  if err != nil {
+    t.Fatalf("Error opening tree : %s", err)
+  }
+
+  for i := 1; i < 100; i++{
+    key := []byte{byte(i)}
+    val := []byte{byte(i)}
+    err = tree.Put(key, val)
+    if err != nil {
+      t.Fatalf("Error inserting key : %s", err)
+    }
+  }
+
+  val, exists, err := tree.Get([]byte{101})
+  if err != nil {
+    t.Fatalf("Error getting value : %s", err)
+  }
+  if !exists {
+    t.Log("Key does not exist")
+    return
+  }
+  t.Log(val)
 }
 
 // t.insertIntoNode(cur *node, key []byte, pointer) error 
