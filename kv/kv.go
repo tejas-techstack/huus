@@ -128,6 +128,8 @@ func (t *BPTree) Put(key, value []byte) (error) {
     if err != nil {
       return fmt.Errorf("Error initializing root : %w", err)
     }
+
+    return nil
   }
 
   if len(value) > maxPageSize {
@@ -143,9 +145,9 @@ func (t *BPTree) Put(key, value []byte) (error) {
   err = t.insertIntoNode(leaf,key, &pointer{value})
   if err != nil {
     return fmt.Errorf("Failed to insert into node : %w", err)
-  } else {
-    return nil
   }
+  
+  return nil
 }
 
 func (t *BPTree) initializeRoot(key, value []byte) error {
@@ -196,6 +198,11 @@ func (t *BPTree) insertIntoNode(cur *node,key []byte, pointer *pointer) error {
       break
     }
     index++
+  }
+
+  err := t.insertKeyAt(cur, index, key)
+  if err != nil {
+    return fmt.Errorf("Error inserting key : %w", err)
   }
 
   if pointer.isValue() {
@@ -261,6 +268,10 @@ func (t *BPTree) findLeafToInsert(key []byte) (*node, error) {
     return nil, fmt.Errorf("Error inserting into leaf : %w", err)
   }
 
+  if root.isLeaf{
+    return root, nil
+  }
+
   if len(root.key) == int(t.order - 1){
     err := t.splitRoot()
     if err != nil {
@@ -297,7 +308,8 @@ func (t *BPTree) findLeafToInsert(key []byte) (*node, error) {
 
 
 func (t *BPTree) findChildIndex(cur *node, key []byte) (int, error) {
-  
+ 
+
   index := 0
   for index < len(cur.key) {
     if compare(key, cur.key[index]) < 0 {
@@ -306,7 +318,7 @@ func (t *BPTree) findChildIndex(cur *node, key []byte) (int, error) {
     index++
   }
 
-  return index, nil
+  return index-1, nil
 
 }
 
@@ -315,6 +327,7 @@ func (t *BPTree) findChild(parent *node, key []byte) (*node, error) {
   if err != nil {
     return nil, fmt.Errorf("error finding child index")
   }
+  fmt.Println(childIndex)
 
   childId := parent.pointers[childIndex].asNodeId()
 
@@ -454,13 +467,7 @@ func (t *BPTree) splitNode(cur *node, parent *node) error {
     return fmt.Errorf("Error updating child node : %w", err)
   }
 
-  err = t.storage.updateNode(parent)
-  if err != nil {
-    return fmt.Errorf("Error updating parent node : %w", err)
-  } else {
-    return nil
-  }
-
+  return nil
 }
 
 func (t *BPTree) insertKeyAt(cur *node, index int, key []byte) error {
@@ -474,6 +481,11 @@ func (t *BPTree) insertKeyAt(cur *node, index int, key []byte) error {
   copy(cur.key[index+1:], cur.key[index:])
   cur.key[index] = key
 
+  err := t.storage.updateNode(cur)
+  if err != nil {
+    return fmt.Errorf("Error updating node : %w", err)
+  }
+
   return nil
 }
 
@@ -486,6 +498,11 @@ func (t *BPTree) insertValueAt(cur *node, index int, value []byte) error {
   copy(cur.pointers[index+1:], cur.pointers[index:])
   cur.pointers[index] = &pointer{value}
 
+  err := t.storage.updateNode(cur)
+  if err != nil {
+    return fmt.Errorf("Error updating node : %w", err)
+  }
+
   return nil
 }
 
@@ -497,6 +514,11 @@ func (t *BPTree) insertNodeAt(cur *node, index int, child uint32) error {
   cur.pointers = append(cur.pointers, &pointer{0})
   copy(cur.pointers[index+1:], cur.pointers[index:])
   cur.pointers[index] = &pointer{child}
+
+  err := t.storage.updateNode(cur)
+  if err != nil {
+    return fmt.Errorf("Error updating node : %w", err)
+  }
 
   return nil
 }

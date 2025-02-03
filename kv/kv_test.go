@@ -84,6 +84,38 @@ func TestInitRoot(t *testing.T) {
 
 
 // t.Put(key, value []byte) (error) 
+func TestPut(t *testing.T) {
+  dbDir, _ := os.MkdirTemp(os.TempDir(), "example")
+
+  defer func() {
+    if err := os.RemoveAll(dbDir); err != nil {
+      panic(fmt.Errorf("failed to remove %s:%s", dbDir, err))
+    } 
+  }()
+
+  tree, err := Open(path.Join(dbDir, "example.db"), 100, 4096)
+  if err != nil {
+    t.Fatalf("Error opening tree : %s", err)
+  }
+
+  for i := 1; i < 10; i++{
+    key := []byte{byte(i)}
+    val := []byte{byte(i)}
+    err = tree.Put(key, val)
+    if err != nil {
+      t.Fatalf("Error inserting key : %s", err)
+    }
+  }
+
+  root, _ := tree.storage.loadNode(tree.metadata.rootId)
+  
+  for i := 0; i < 9; i++{
+    key := root.key[i]
+    val := root.pointers[i].asValue()
+    t.Logf("%d %d ", key, val)
+  }
+  t.Logf("\n")
+}
 
 // t.insertIntoNode(cur *node, key []byte, pointer) error 
 
@@ -105,6 +137,3 @@ func TestInitRoot(t *testing.T) {
 
 // t. insertNodeAt(cur, index, nodeId uint32) error {}
 
-// compare(x, y []byte) int {}
-
-// calcMinOrder(order uint16) {}
