@@ -159,38 +159,18 @@ func TestSplitRoot(t *testing.T) {
     } 
   }()
 
-  tree, err := Open(path.Join(dbDir, "example.db"), 100, 4096)
+  tree, err := Open(path.Join(dbDir, "example.db"), 5, 4096)
   if err != nil {
     t.Fatalf("Error opening tree : %s", err)
   }
 
-  for i := 1; i < 101; i++{
+  for i := 1; i < 30; i++{
     key := []byte{byte(i)}
     val := []byte{byte(i)}
     err = tree.Put(key, val)
     if err != nil {
-      t.Fatalf("Error inserting key : %s", err)
+      t.Fatalf("Could not insert key : %s", err)
     }
   }
 }
-
-// t.insertIntoNode(cur *node, key []byte, pointer) error 
-
-// t.findLeaf(key []byte) (*node, error) {}
-
-// t.findLeafToInsert(key []byte) (*node, error) {}
-
-// t.findChildIndex(cur *node, key []byte) (int, error){}
-
-// t.findChild(parent *node, key []byte) (*node, error) {}
-
-// t.splitRoot() error {}
-
-// t.splitNode(cur *node, parent *node) error {}
-
-// t.insertKeyAt(cur, index, key[]byte) error {}
-
-// t.insertValueAt(cur, index, value []byte) error {}
-
-// t. insertNodeAt(cur, index, nodeId uint32) error {}
 

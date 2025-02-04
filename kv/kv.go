@@ -287,17 +287,29 @@ func (t *BPTree) findLeafToInsert(key []byte) (*node, error) {
     return nil, fmt.Errorf("Error finding child : %w", err)
   }
 
+  if len(child.key) == int(t.order - 1) {
+    err := t.splitNode(child, parent)
+    if err != nil {
+      return nil, fmt.Errorf("Error splitting child : %w", err)
+    }
+  }
+
+
   for !child.isLeaf{
     parent = child;
     child, err = t.findChild(parent, key)
 
     if len(child.key) == int(t.order - 1) {
-      err := t.splitNode(parent, child)
+      err := t.splitNode(child, parent)
       if err != nil {
         return nil, fmt.Errorf("Error splitting child : %w", err)
       }
     }
+
+    child, err = t.findChild(parent,key)
   }
+
+  child, err = t.findChild(parent, key)
 
   if child.isLeaf {
     return child, nil
@@ -385,7 +397,6 @@ func (t *BPTree) splitRoot() (*node, error) {
 }
 
 func (t *BPTree) splitNode(cur *node, parent *node) error {
-
   // splitNode assumes cur and parent nodes have space present already.
 
   // create new node.
@@ -438,8 +449,9 @@ func (t *BPTree) splitNode(cur *node, parent *node) error {
     cur.key = cur.key[:t.minKeyNum]
 
     // update child pointers
-    newNode.pointers = append(newNode.pointers,cur.pointers[t.minKeyNum :]...)
-    cur.pointers = cur.pointers[:t.minKeyNum]
+    newNode.pointers = append(newNode.pointers,cur.pointers[t.minKeyNum+1 :]...)
+    cur.pointers = cur.pointers[:t.minKeyNum + 1]
+
   }
 
   // move seperator and newNode to parent.
