@@ -150,6 +150,30 @@ func TestPutAndGet(t *testing.T) {
   t.Log(val)
 }
 
+func TestSplitRoot(t *testing.T) {
+  dbDir, _ := os.MkdirTemp(os.TempDir(), "example")
+
+  defer func() {
+    if err := os.RemoveAll(dbDir); err != nil {
+      panic(fmt.Errorf("failed to remove %s:%s", dbDir, err))
+    } 
+  }()
+
+  tree, err := Open(path.Join(dbDir, "example.db"), 100, 4096)
+  if err != nil {
+    t.Fatalf("Error opening tree : %s", err)
+  }
+
+  for i := 1; i < 101; i++{
+    key := []byte{byte(i)}
+    val := []byte{byte(i)}
+    err = tree.Put(key, val)
+    if err != nil {
+      t.Fatalf("Error inserting key : %s", err)
+    }
+  }
+}
+
 // t.insertIntoNode(cur *node, key []byte, pointer) error 
 
 // t.findLeaf(key []byte) (*node, error) {}
