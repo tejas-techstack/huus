@@ -39,6 +39,18 @@ func decodeUint32(data []byte) uint32 {
   return binary.BigEndian.Uint32(data)
 }
 
+func encodeUint64(val int) []byte {
+  var data [8]byte
+
+  binary.BigEndian.PutUint64(data[:], uint64(val))
+
+  return data[:]
+}
+
+func decodeUint64(data []byte) int {
+  return int(binary.BigEndian.Uint64(data))
+}
+
 func encodeBool(val bool) []byte {
   var data [1]byte
 
@@ -50,6 +62,8 @@ func encodeBool(val bool) []byte {
 
   return data[:]
 }
+
+
 
 func decodeBool(data []byte) bool {
   if data[0] == 1{
@@ -152,7 +166,7 @@ func decodeNode(data []byte) (*node, error) {
   return newNode, nil
 }
 
-func encodeMetaData(metadata *treeMetaData) []byte {
+func encodeMetadata(metadata *treeMetaData) []byte {
   var data []byte
 
   data = append(data, encodeUint16(metadata.order)...)
@@ -162,7 +176,7 @@ func encodeMetaData(metadata *treeMetaData) []byte {
   return data
 }
 
-func decodeMetaData(data []byte) (*treeMetaData, error) {
+func decodeMetadata(data []byte) (*treeMetaData, error) {
   order := decodeUint16(data[0:2])
   rootId := decodeUint32(data[2:6])
   pageSize := decodeUint16(data[6:8])
@@ -174,4 +188,28 @@ func decodeMetaData(data []byte) (*treeMetaData, error) {
   }
 
   return metadata, nil
+}
+
+func encodeStorageMetadata(md *storageMetadata) []byte {
+  var data []byte
+
+  data = append(data, encodeUint16(md.pageSize)...)
+  data = append(data, encodeUint32(md.lastPageId)...)
+  data = append(data, md.custom...)
+
+  return data
+}
+
+func decodeStorageMetadata(data []byte) *storageMetadata {
+  pageSize := decodeUint16(data[0:2])
+  lastPageId := decodeUint32(data[2:6])
+  custom := data[6:]
+
+  metadata := &storageMetadata{
+    pageSize,
+    lastPageId,
+    custom,
+  }
+
+  return metadata
 }

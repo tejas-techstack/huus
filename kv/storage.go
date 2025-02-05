@@ -28,22 +28,12 @@ type storage struct {
 
 type storageMetadata struct {
   pageSize uint16
-
+  lastPageId uint32
   // custom metadata is the tree metadata.
   custom []byte
 }
 
-func newStorage (path string, pageSize uint16) (*storage, error){
-
-  /* new  storage is supposed to  
-    open the file to write.
-      > if the file is opened
-      a. it needs to load the free pages.
-      b. read storage metadata and ensure the pagesize is equal to given pagesize
-      > if file is empty
-      a. check if pageSize is less than minPageSize
-      b. initialize metadata for the file and write it to the file.
-  */
+func newStorage (path string, pageSize uint16, order uint16) (*storage, error){
 
   fo, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE, 0644)
   if err != nil {
@@ -60,28 +50,28 @@ func newStorage (path string, pageSize uint16) (*storage, error){
   }
 
   if info.Size() == 0 {
-    // file is empty, need to initialize:
-    
-    // metadata is basically a copy of the storage.
-    // that will be written to the file.
-    // the lastPageId is not passed to writeMetadata
-    // since it is defined based on the contents of the file.
-    
+
     s := &storage{
       fo : fo,
       pageSize : pageSize,
       freePages: nil,
-      lastPageId : 0,
-      metadata : &storageMetadata{pageSize, nil,},
+      lastPageId : 1,
+      metadata : &storageMetadata{pageSize, 1, nil,},
     }
-   
-    if err := s.writeStorageMetadata(); err != nil {
-      return nil, fmt.Errorf("Error Writing metadata : %w", err)
-    }
+  
+    /*
+    rootId,_ := s.newPage()
+    custom := encodeMetadata(&treeMetaData{
+      order : order,
+      rootId : rootId,
+      pageSize : s.pageSize,
+    })
 
-    err := s.initializeFreePages()
-    if err != nil {
-      return nil, fmt.Errorf("Error initializing free pages : %w", err)
+    s.metadata.custom = custom
+    */
+
+    if err := s.writeStorageMetadata(s.metadata); err != nil {
+      return nil, fmt.Errorf("Error Writing metadata : %w", err)
     }
 
     if err := s.flush(); err != nil {
@@ -91,68 +81,88 @@ func newStorage (path string, pageSize uint16) (*storage, error){
     return s, nil
   }
 
-  metadata, err := readStorageMetadata()
+  metadata, err := readStorageMetadata(fo)
   if err != nil {
     return nil, fmt.Errorf("Error reading storage metadata : %w",err)
   }
 
+  // TODO implement later once everything else is working.
+  /*
   freePages,err := readFreePages()
   if err != nil {
     return nil, fmt.Errorf("Error reading free pages : %w" ,err)
   }
+  */
 
+  lastPageId := metadata.lastPageId
+  
+  // BUG: freePages initialized to nil this needs to be changed.
+  return &storage{fo, pageSize, nil, lastPageId, metadata}, nil
+}
 
-  // TODO fix this.
-  lastPageId, err := getLastPageId()
+func (s *storage) writeStorageMetadata(md *storageMetadata) error {
+  offset := int64(0)
+  dataToWrite := make([]byte, 1000)
+  copy(dataToWrite, encodeStorageMetadata(md))
+
+  n, err := s.fo.WriteAt(dataToWrite, offset)
   if err != nil {
-    return nil, fmt.Errorf("Error loading lastPageId : %w", err)
+    return fmt.Errorf("Error writing to page : %w", err)
+  } 
+  if n != len(dataToWrite) {
+    return fmt.Errorf("Bytes written lesser than given bytes.")
   }
 
-  return &storage{fo, pageSize, freePages, lastPageId, metadata}, nil
+  err = s.flush()
+  if err != nil {
+    return fmt.Errorf("Error flushing to file : %w", err)
+  }
+
+  return nil
+
 }
 
-func (s *storage) initializeFreePages() error {
-  return fmt.Errorf("Not yet implemented")
-}
+// func readFreePages() ([]uint32, error) { /*returns freePages by reading from file.*/}
 
-func (s *storage) writeStorageMetadata() error {
+func readStorageMetadata(fo *os.File) (*storageMetadata, error) {
+  offset := int64(0)
+  data := make([]byte, 1000)
 
-  return fmt.Errorf("Not yet implemented")
-}
+  _, err := fo.ReadAt(data, offset)
+  if err != nil {
+    return nil,fmt.Errorf("Error reading data : %w", err)
+  }
 
-func readStorageMetadata() (*storageMetadata, error) {
-  return nil, fmt.Errorf("Not yet implemented")
-}
-
-func readFreePages() ([]uint32, error) {
-  return nil, fmt.Errorf("Not yet implemented")
-}
-
-func getLastPageId() (uint32, error) {
-  return uint32(0), fmt.Errorf("Not yet implemented")
+  metadata := decodeStorageMetadata(data)
+  
+  return metadata, nil
 }
 
 func (s *storage) loadMetadata() (*treeMetaData, error) {
+  if s.metadata.custom == nil {
+    return nil, nil
+  }
 
-  // need to see how order seems to be managed.
-
-  /* from the file load the custom metadata.
-     the custom metadata contains: 
-     1. order
-     2. rootId
-     3. pageSize
-  */ 
-
-  return nil, fmt.Errorf("Not yet implemented")
+  md, _ := decodeMetadata(s.metadata.custom)
+  return md, nil
 }
 
-func (s *storage) updateMetaData(newRootId uint32) error {
+func (s *storage) updateMetadata(tmd *treeMetaData) error {
 
-  // write new metadata to the file with new root id.
-  // read current metadata, decode, change the root id ,
-  // encode and write back.
+  s.metadata.custom = encodeMetadata(tmd)
 
-  return fmt.Errorf("Not yet implemented")
+  err := s.writeStorageMetadata(s.metadata)
+  if err != nil {
+    return fmt.Errorf("Error updating storage metadata : %w", err)
+  }
+
+  s.metadata, err = readStorageMetadata(s.fo)
+  if err != nil {
+    return fmt.Errorf("Error reading metadata : %w", err)
+  }
+
+  return nil
+  // return fmt.Errorf("Not yet implemented")
 }
 
 func (s *storage) loadNodeRaw(nodeId uint32) ([]byte, error) {
@@ -166,13 +176,12 @@ func (s *storage) loadNodeRaw(nodeId uint32) ([]byte, error) {
   }
 
 
-  
   nextPageId := decodeUint32(data[4:8])
   data = data[8:]
   for nextPageId != uint32(0) {
     tempData := make([]byte, int(s.pageSize))
     offset := (int(nextPageId) * int(s.pageSize)) + metadataSize
-    _, err := s.fo.ReadAt(data, int64(offset))
+    _, err := s.fo.ReadAt(tempData, int64(offset))
     if err != nil {
       return nil, fmt.Errorf("error reading file : %w", err)
     }
@@ -181,7 +190,6 @@ func (s *storage) loadNodeRaw(nodeId uint32) ([]byte, error) {
 
     data = append(data, tempData...)
   }
-
 
 
   return data, nil
@@ -276,9 +284,6 @@ func (s *storage) writePages(curPageId uint32, data []byte) (uint32, error) {
 
     nextPageId = decodeUint32(nextPageData[4:8])
 
-    // if nextPageId is 0 and data is still there to write
-    // generate a new page.
-    // else last page to write anyways and keep it 0
     if nextPageId == uint32(0) && (len(data) > int(s.pageSize-8)) {
       nextPageId, err = s.newPage()
       if err != nil {
@@ -298,6 +303,7 @@ func (s *storage) writePages(curPageId uint32, data []byte) (uint32, error) {
       data = data[s.pageSize-8:]
     }
 
+
     err = s.writePage(curPageId, dataToWrite)
     if err != nil {
       return uint32(0), fmt.Errorf("Error writing page : %w", err)
@@ -305,7 +311,7 @@ func (s *storage) writePages(curPageId uint32, data []byte) (uint32, error) {
 
     curPageId = nextPageId
   }
-
+ 
   return nextPageId, nil
 }
 

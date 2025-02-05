@@ -2,22 +2,14 @@ package kv
 
 import (
   "testing"
-)
-/*
   "path"
   "fmt"
   "os"
-*/
+)
 
-// function to create test tree in TempDir
-func createTestTree() (*BPTree) {
-  // set the config.
-  return nil
-}
 
 // Open(path string) error
 func TestOpen(t *testing.T) {
-  /*
   dbDir, _ := os.MkdirTemp(os.TempDir(), "example")
 
   defer func() {
@@ -29,37 +21,185 @@ func TestOpen(t *testing.T) {
   tree, err := Open(path.Join(dbDir, "example.db"), 100, 4096)
   if err != nil {
     t.Fatalf("Error opening tree : %s", err)
-  } else {
-    t.Log(tree)
   }
-*/
-return 
+
+  t.Log(tree.order, tree.storage, tree.metadata, tree.minKeyNum)
+
 }
 
-// t.Get(key []byte) ([]byte, error)
+func TestGet(t *testing.T) {
+  dbDir, _ := os.MkdirTemp(os.TempDir(), "example")
+
+  defer func() {
+    if err := os.RemoveAll(dbDir); err != nil {
+      panic(fmt.Errorf("failed to remove %s:%s", dbDir, err))
+    } 
+  }()
+
+  tree, err := Open(path.Join(dbDir, "example.db"), 100, 4096)
+  if err != nil {
+    t.Fatalf("Error opening tree : %s", err)
+  }
+
+  key := []byte{1}
+  val, exists, err := tree.Get(key)
+  if err != nil {
+    t.Fatalf("Error getting value : %s", err)
+  }
+
+  if exists {
+    t.Log(val)
+  } else {
+    t.Log("Value does not exist.")
+  }
+
+}
+
+
+func TestInitRoot(t *testing.T) {
+  dbDir, _ := os.MkdirTemp(os.TempDir(), "example")
+
+  defer func() {
+    if err := os.RemoveAll(dbDir); err != nil {
+      panic(fmt.Errorf("failed to remove %s:%s", dbDir, err))
+    } 
+  }()
+
+  tree, err := Open(path.Join(dbDir, "example.db"), 100, 4096)
+  if err != nil {
+    t.Fatalf("Error opening tree : %s", err)
+  }
+
+  key := []byte{15}
+  val := []byte{18}
+  err = tree.initializeRoot(key, val)
+  if err != nil {
+    t.Fatalf("Error initializing root : %s", err)
+  }
+
+
+  // t.Log(tree.storage.metadata)
+  root, _ := tree.storage.loadNode(tree.metadata.rootId)
+  t.Log(root)
+}
+
 
 // t.Put(key, value []byte) (error) 
+func TestPut(t *testing.T) {
+  dbDir, _ := os.MkdirTemp(os.TempDir(), "example")
 
-// t.insertIntoNode(cur *node, key []byte, pointer) error 
+  defer func() {
+    if err := os.RemoveAll(dbDir); err != nil {
+      panic(fmt.Errorf("failed to remove %s:%s", dbDir, err))
+    } 
+  }()
 
-// t.findLeaf(key []byte) (*node, error) {}
+  tree, err := Open(path.Join(dbDir, "example.db"), 100, 4096)
+  if err != nil {
+    t.Fatalf("Error opening tree : %s", err)
+  }
 
-// t.findLeafToInsert(key []byte) (*node, error) {}
+  for i := 1; i < 5; i++{
+    key := []byte{byte(i)}
+    val := []byte{byte(i)}
+    err = tree.Put(key, val)
+    if err != nil {
+      t.Fatalf("Error inserting key : %s", err)
+    }
+  }
 
-// t.findChildIndex(cur *node, key []byte) (int, error){}
+  root, _ := tree.storage.loadNode(tree.metadata.rootId)
+  
+  for i := 0; i < 4; i++{
+    key := root.key[i]
+    val := root.pointers[i].asValue()
+    t.Logf("%d %d", key, val)
+  }
+}
 
-// t.findChild(parent *node, key []byte) (*node, error) {}
+func TestPutAndGet(t *testing.T) {
+  dbDir, _ := os.MkdirTemp(os.TempDir(), "example")
 
-// t.splitRoot() error {}
+  defer func() {
+    if err := os.RemoveAll(dbDir); err != nil {
+      panic(fmt.Errorf("failed to remove %s:%s", dbDir, err))
+    } 
+  }()
 
-// t.splitNode(cur *node, parent *node) error {}
+  tree, err := Open(path.Join(dbDir, "example.db"), 100, 4096)
+  if err != nil {
+    t.Fatalf("Error opening tree : %s", err)
+  }
 
-// t.insertKeyAt(cur, index, key[]byte) error {}
+  for i := 1; i < 100; i++{
+    key := []byte{byte(i)}
+    val := []byte{byte(i)}
+    err = tree.Put(key, val)
+    if err != nil {
+      t.Fatalf("Error inserting key : %s", err)
+    }
+  }
 
-// t.insertValueAt(cur, index, value []byte) error {}
+  val, exists, err := tree.Get([]byte{101})
+  if err != nil {
+    t.Fatalf("Error getting value : %s", err)
+  }
+  if !exists {
+    t.Log("Key does not exist")
+    return
+  }
+  t.Log(val)
+}
 
-// t. insertNodeAt(cur, index, nodeId uint32) error {}
+func TestSplitRoot(t *testing.T) {
+  dbDir, _ := os.MkdirTemp(os.TempDir(), "example")
 
-// compare(x, y []byte) int {}
+  defer func() {
+    if err := os.RemoveAll(dbDir); err != nil {
+      panic(fmt.Errorf("failed to remove %s:%s", dbDir, err))
+    } 
+  }()
 
-// calcMinOrder(order uint16) {}
+  tree, err := Open(path.Join(dbDir, "example.db"), 5, 4096)
+  if err != nil {
+    t.Fatalf("Error opening tree : %s", err)
+  }
+
+  for i := 1; i < 10000; i++{
+    key := encodeUint64(i)
+    val := encodeUint64(i)
+    err = tree.Put(key, val)
+    if err != nil {
+      t.Fatalf("Could not insert key : %s", err)
+    }
+  }
+}
+
+
+
+func TestChaining(t *testing.T){
+  dbDir, _ := os.MkdirTemp(os.TempDir(), "example")
+
+  defer func() {
+    if err := os.RemoveAll(dbDir); err != nil {
+      panic(fmt.Errorf("failed to remove %s:%s", dbDir, err))
+    } 
+  }()
+
+  tree, err := Open(path.Join(dbDir, "example.db"), 1000, 4096)
+  if err != nil {
+    t.Fatalf("Error opening tree : %s", err)
+  }
+
+
+  for i := 1; i < 10000; i++{
+    key := encodeUint64(i)
+    val := encodeUint64(i)
+    err = tree.Put(key, val)
+    if err != nil {
+      t.Fatalf("Could not insert key : %s", err)
+    }
+  }
+  
+  
+}
