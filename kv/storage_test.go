@@ -92,6 +92,7 @@ func TestUpdateNode(t *testing.T) {
     } 
   }()
 
+  // newStorage(path, pageSize, order)
   s, err := newStorage(path.Join(dbDir, "test.db"), 4096, 1000)
   if err != nil {
     t.Fatalf("Error creating newStorage : %s", err)
@@ -104,13 +105,11 @@ func TestUpdateNode(t *testing.T) {
     t.Log(newNodeId)
   }
 
-  // t.Log("id thats gonna load with raw data:", newNodeId)
   node, err := s.loadNode(newNodeId)
   if err != nil {
     t.Fatalf("Error creating newNode : %s", err)
   }
 
-  t.Log("Node before updating : ", node)
 
   for i := 0; i<5; i++ {
     node.key = append(node.key, encodeUint32(uint32(i)))
@@ -132,6 +131,7 @@ func TestUpdateNode(t *testing.T) {
 
   err = s.updateNode(node)
   if err != nil {
+    
     t.Fatalf("Error updaing node : %s", err)
   }
 

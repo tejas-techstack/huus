@@ -176,13 +176,12 @@ func (s *storage) loadNodeRaw(nodeId uint32) ([]byte, error) {
   }
 
 
-  
   nextPageId := decodeUint32(data[4:8])
   data = data[8:]
   for nextPageId != uint32(0) {
     tempData := make([]byte, int(s.pageSize))
     offset := (int(nextPageId) * int(s.pageSize)) + metadataSize
-    _, err := s.fo.ReadAt(data, int64(offset))
+    _, err := s.fo.ReadAt(tempData, int64(offset))
     if err != nil {
       return nil, fmt.Errorf("error reading file : %w", err)
     }
@@ -191,7 +190,6 @@ func (s *storage) loadNodeRaw(nodeId uint32) ([]byte, error) {
 
     data = append(data, tempData...)
   }
-
 
 
   return data, nil
@@ -305,6 +303,7 @@ func (s *storage) writePages(curPageId uint32, data []byte) (uint32, error) {
       data = data[s.pageSize-8:]
     }
 
+
     err = s.writePage(curPageId, dataToWrite)
     if err != nil {
       return uint32(0), fmt.Errorf("Error writing page : %w", err)
@@ -312,7 +311,7 @@ func (s *storage) writePages(curPageId uint32, data []byte) (uint32, error) {
 
     curPageId = nextPageId
   }
-
+ 
   return nextPageId, nil
 }
 
