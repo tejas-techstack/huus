@@ -268,6 +268,7 @@ func (t *BPTree) findLeafToInsert(key []byte) (*node, error) {
     return nil, fmt.Errorf("Error inserting into leaf : %w", err)
   }
 
+
   if len(root.key) == int(t.order - 1){
     root, err = t.splitRoot()
     if err != nil {

@@ -39,6 +39,18 @@ func decodeUint32(data []byte) uint32 {
   return binary.BigEndian.Uint32(data)
 }
 
+func encodeUint64(val int) []byte {
+  var data [8]byte
+
+  binary.BigEndian.PutUint64(data[:], uint64(val))
+
+  return data[:]
+}
+
+func decodeUint64(data []byte) int {
+  return int(binary.BigEndian.Uint64(data))
+}
+
 func encodeBool(val bool) []byte {
   var data [1]byte
 
@@ -50,6 +62,8 @@ func encodeBool(val bool) []byte {
 
   return data[:]
 }
+
+
 
 func decodeBool(data []byte) bool {
   if data[0] == 1{

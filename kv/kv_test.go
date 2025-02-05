@@ -55,6 +55,7 @@ func TestGet(t *testing.T) {
 
 }
 
+
 func TestInitRoot(t *testing.T) {
   dbDir, _ := os.MkdirTemp(os.TempDir(), "example")
 
@@ -164,9 +165,9 @@ func TestSplitRoot(t *testing.T) {
     t.Fatalf("Error opening tree : %s", err)
   }
 
-  for i := 1; i < 30; i++{
-    key := []byte{byte(i)}
-    val := []byte{byte(i)}
+  for i := 1; i < 10000; i++{
+    key := encodeUint64(i)
+    val := encodeUint64(i)
     err = tree.Put(key, val)
     if err != nil {
       t.Fatalf("Could not insert key : %s", err)
@@ -174,3 +175,31 @@ func TestSplitRoot(t *testing.T) {
   }
 }
 
+
+
+func TestChaining(t *testing.T){
+  dbDir, _ := os.MkdirTemp(os.TempDir(), "example")
+
+  defer func() {
+    if err := os.RemoveAll(dbDir); err != nil {
+      panic(fmt.Errorf("failed to remove %s:%s", dbDir, err))
+    } 
+  }()
+
+  tree, err := Open(path.Join(dbDir, "example.db"), 1000, 4096)
+  if err != nil {
+    t.Fatalf("Error opening tree : %s", err)
+  }
+
+
+  for i := 1; i < 10000; i++{
+    key := encodeUint64(i)
+    val := encodeUint64(i)
+    err = tree.Put(key, val)
+    if err != nil {
+      t.Fatalf("Could not insert key : %s", err)
+    }
+  }
+  
+  
+}
