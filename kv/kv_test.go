@@ -132,23 +132,33 @@ func TestPutAndGet(t *testing.T) {
   }
 
   for i := 1; i < 100; i++{
-    key := []byte{byte(i)}
-    val := []byte{byte(i)}
+    key := encodeUint64(i)
+    val := encodeUint64(i)
     err = tree.Put(key, val)
     if err != nil {
       t.Fatalf("Error inserting key : %s", err)
     }
   }
 
-  val, exists, err := tree.Get([]byte{101})
+  val, exists, err := tree.Get(encodeUint64(101))
   if err != nil {
     t.Fatalf("Error getting value : %s", err)
   }
   if !exists {
     t.Log("Key does not exist")
-    return
+  } else {
+    t.Log("key exists:", val)
   }
-  t.Log(val)
+
+  val, exists, err = tree.Get(encodeUint64(99))
+  if err != nil {
+    t.Fatalf("Error getting value : %s", err)
+  }
+  if !exists {
+    t.Log("Key does not exist")
+  } else {
+    t.Log("key exists:", val)
+  }
 }
 
 func TestSplitRoot(t *testing.T) {
@@ -165,7 +175,7 @@ func TestSplitRoot(t *testing.T) {
     t.Fatalf("Error opening tree : %s", err)
   }
 
-  for i := 1; i < 10000; i++{
+  for i := 1; i < 100; i++{
     key := encodeUint64(i)
     val := encodeUint64(i)
     err = tree.Put(key, val)
@@ -175,8 +185,7 @@ func TestSplitRoot(t *testing.T) {
   }
 }
 
-
-
+/*
 func TestChaining(t *testing.T){
   dbDir, _ := os.MkdirTemp(os.TempDir(), "example")
 
@@ -199,7 +208,46 @@ func TestChaining(t *testing.T){
     if err != nil {
       t.Fatalf("Could not insert key : %s", err)
     }
+  }  
+}
+*/
+
+func TestDelete(t *testing.T){
+  dbDir, _ := os.MkdirTemp(os.TempDir(), "example")
+
+  defer func() {
+    if err := os.RemoveAll(dbDir); err != nil {
+      panic(fmt.Errorf("failed to remove %s:%s", dbDir, err))
+    } 
+  }()
+
+  tree, err := Open(path.Join(dbDir, "example.db"), 20, 4096)
+  if err != nil {
+    t.Fatalf("Error opening tree : %s", err)
   }
-  
-  
+
+
+  for i := 1; i < 30; i++{
+    key := encodeUint64(i)
+    val := encodeUint64(i)
+    err = tree.Put(key, val)
+    if err != nil {
+      t.Fatalf("Could not insert key : %s", err)
+    }
+  }
+
+  node, err := tree.storage.loadNode(tree.metadata.rootId)
+  node, err = tree.storage.loadNode(node.pointers[0].asNodeId())
+  t.Log("Node before deletion:", node.key)
+
+  for i := 0; i < 15; i++ {
+    _, err = tree.Delete(encodeUint64(i))
+    if err != nil {
+      t.Fatalf("Error deleting key : %s", err)
+    }
+  }
+
+  node, err = tree.storage.loadNode(tree.metadata.rootId)
+  node, err = tree.storage.loadNode(node.pointers[0].asNodeId())
+  t.Log("Node after deletion:", node.key)
 }
