@@ -224,12 +224,9 @@ func (t *BPTree) insertIntoNode(cur *node,key []byte, pointer *pointer) error {
 }
 
 func (t *BPTree) findLeaf(key []byte) (*node, error) {
-  
   /* 
-  
     does not care if next node is full or not.
     returns error if key is not in range.
-
   */
   cur, err := t.storage.loadNode(t.metadata.rootId)
   if err != nil {
@@ -376,7 +373,7 @@ func (t *BPTree) splitRoot() (*node, error) {
   }
 
   // change properties of newRoot and current Root.
-  
+ 
   err = t.splitNode(curRoot, newRoot)
   if err != nil {
     // revert changes to current root
@@ -401,7 +398,6 @@ func (t *BPTree) splitRoot() (*node, error) {
 
 func (t *BPTree) splitNode(cur *node, parent *node) error {
   // splitNode assumes cur and parent nodes have space present already.
-
   // create new node.
   // copy contents of cur node to new node
   // clear contents of cur node that were copied.
@@ -420,6 +416,10 @@ func (t *BPTree) splitNode(cur *node, parent *node) error {
   if err != nil {
     return fmt.Errorf("Error creating newNode : %w", err)
   }
+
+  // need to update current's parent id.
+  // in case it may be a root node that is being split
+  cur.parentId = parent.id
 
   newNode := &node {
     id : newNodeId,
@@ -482,6 +482,7 @@ func (t *BPTree) splitNode(cur *node, parent *node) error {
   if err != nil {
     return fmt.Errorf("Error updating child node : %w", err)
   }
+
 
   return nil
 }
@@ -561,14 +562,18 @@ func (t *BPTree) Delete(key []byte) (bool, error) {
     return false,fmt.Errorf("Error removing key at leaf : %w", err)
   }
 
-  // TODO: check is something needs to be done to parents explicitly.
-
   return true, nil
 }
 
 func (t *BPTree) removeKeyAtLeaf(cur *node, key []byte) error {
 
   if len(cur.key) == t.minKeyNum && cur.id != t.metadata.rootId{
+    for i, v := range cur.key {
+      if compare(v, key) == 0 {
+        cur.key = append(cur.key[:i], cur.key[i+1:]...)
+      }
+    }
+
     if cur.sibling == uint32(0) {
       return fmt.Errorf("Not yet implemented edge case.")
     }
@@ -613,11 +618,59 @@ func (t *BPTree) removeKeyAtLeaf(cur *node, key []byte) error {
 }
 
 func (t *BPTree) borrowKey(sibling, cur *node) error {
-  return fmt.Errorf("Not yet implemeneted")
+  // BUG borrowKey is tested only with leaf nodes.
+  parent, err := t.storage.loadNode(cur.parentId)
+  if err != nil {
+    return fmt.Errorf("Error loading parent.")
+  }
+
+  bKey := sibling.key[0]
+  bVal := sibling.pointers[0]
+
+  sibling.key = sibling.key[1:]
+  sibling.pointers = sibling.pointers[1:]
+
+  cur.key = append(cur.key, bKey)
+  cur.pointers = append(cur.pointers, bVal)
+
+  index := 0
+  // find the postion in parent.
+  for i, v := range parent.pointers {
+    if v.asNodeId() == cur.id{
+      // found index.
+      index = i
+    }
+  }
+
+  // pointers[index] represents the node that has keys lesser than key[index]
+  // we need to change this one based on the borrow.
+
+  if compare(parent.key[index], bKey) == 0 {
+    parent.key[index] = sibling.key[0]
+    err = t.storage.updateNode(parent)
+    if err != nil {
+      return fmt.Errorf("Error updating parent : %w", err)
+    }
+  }
+
+  if err := t.storage.updateNode(cur); err != nil {
+    return fmt.Errorf("Error updating current : %w", err)
+  }
+  
+  if err := t.storage.updateNode(sibling); err != nil {
+    return fmt.Errorf("Error updating sibling : %w", err)
+  }
+
+  return nil
 }
 
 func (t *BPTree) mergeNode(sibling, cur *node) error {
-  return fmt.Errorf("Not yet implemented.")
+  // merge effectively causes deletion of a node.
+  // this means the parent will have 1 key less.
+  // this means that the parent can go below the threshold as well.
+  // this means we have may have to merge/borrow from a non leaf node as well.
+
+  return fmt.Errorf("Not yet implemented merge")
 }
 
 func compare(byteA ,byteB []byte) int {

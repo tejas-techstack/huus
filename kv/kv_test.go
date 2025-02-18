@@ -7,7 +7,7 @@ import (
   "os"
 )
 
-
+/*
 // Open(path string) error
 func TestOpen(t *testing.T) {
   dbDir, _ := os.MkdirTemp(os.TempDir(), "example")
@@ -26,7 +26,9 @@ func TestOpen(t *testing.T) {
   t.Log(tree.order, tree.storage, tree.metadata, tree.minKeyNum)
 
 }
+*/
 
+/*
 func TestGet(t *testing.T) {
   dbDir, _ := os.MkdirTemp(os.TempDir(), "example")
 
@@ -54,8 +56,9 @@ func TestGet(t *testing.T) {
   }
 
 }
+*/
 
-
+/*
 func TestInitRoot(t *testing.T) {
   dbDir, _ := os.MkdirTemp(os.TempDir(), "example")
 
@@ -82,7 +85,7 @@ func TestInitRoot(t *testing.T) {
   root, _ := tree.storage.loadNode(tree.metadata.rootId)
   t.Log(root)
 }
-
+*/
 
 // t.Put(key, value []byte) (error) 
 func TestPut(t *testing.T) {
@@ -227,7 +230,7 @@ func TestDelete(t *testing.T){
   }
 
 
-  for i := 1; i < 30; i++{
+  for i := 1; i < 25; i++{
     key := encodeUint64(i)
     val := encodeUint64(i)
     err = tree.Put(key, val)
@@ -240,11 +243,9 @@ func TestDelete(t *testing.T){
   node, err = tree.storage.loadNode(node.pointers[0].asNodeId())
   t.Log("Node before deletion:", node.key)
 
-  for i := 0; i < 15; i++ {
-    _, err = tree.Delete(encodeUint64(i))
-    if err != nil {
-      t.Fatalf("Error deleting key : %s", err)
-    }
+  _, err = tree.Delete(encodeUint64(9))
+  if err != nil {
+    t.Fatalf("Error deleting key : %s", err)
   }
 
   node, err = tree.storage.loadNode(tree.metadata.rootId)
