@@ -583,7 +583,7 @@ func (t *BPTree) removeKeyAtLeaf(cur *node, key []byte) error {
       return fmt.Errorf("Error loading sibling : %w", err)
     }
 
-    if len(sibling.key) == t.minKeyNum + 1 {
+    if len(sibling.key) <= t.minKeyNum + 1 {
       // merge.
       err = t.mergeNode(sibling, cur)
       if err != nil {
@@ -618,7 +618,7 @@ func (t *BPTree) removeKeyAtLeaf(cur *node, key []byte) error {
 }
 
 func (t *BPTree) borrowKey(sibling, cur *node) error {
-  // BUG borrowKey is tested only with leaf nodes.
+  // NOTE: borrowKey is tested only with leaf nodes.
   parent, err := t.storage.loadNode(cur.parentId)
   if err != nil {
     return fmt.Errorf("Error loading parent.")
@@ -669,8 +669,44 @@ func (t *BPTree) mergeNode(sibling, cur *node) error {
   // this means the parent will have 1 key less.
   // this means that the parent can go below the threshold as well.
   // this means we have may have to merge/borrow from a non leaf node as well.
+ 
+  parent, err := t.storage.loadNode(cur.parentId)
+  if err != nil {
+    return fmt.Errorf("Error loading parent.")
+  }
 
-  return fmt.Errorf("Not yet implemented merge")
+  cur.key = append(cur.key, sibling.key...)
+  cur.pointers = append(cur.pointers, sibling.pointers...)
+  cur.sibling = sibling.sibling
+
+  if err = t.storage.deleteNode(sibling.id); err != nil {
+    return fmt.Errorf("Error deleting node : %w", err)
+  }
+
+  index := 0
+  for i, v := range parent.pointers {
+    if v.asNodeId() == cur.id{
+      // found index.
+      index = i
+    }
+  }
+  
+  parent.key = append(parent.key[:index], parent.key[index+1:]...)
+  parent.pointers = append(parent.pointers[:index+1], parent.pointers[index+2:]...)
+
+  if len(parent.key) < t.minKeyNum && parent.id != t.metadata.rootId{
+    return fmt.Errorf("Need to do merging of non leaf nodes.")
+  }
+
+  if err := t.storage.updateNode(cur); err != nil {
+    return fmt.Errorf("Error updating current : %w", err)
+  }
+
+  if err := t.storage.updateNode(parent); err != nil {
+    return fmt.Errorf("Error updating parent : %w", err)
+  }
+
+  return nil
 }
 
 func compare(byteA ,byteB []byte) int {

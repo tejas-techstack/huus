@@ -230,7 +230,7 @@ func TestDelete(t *testing.T){
   }
 
 
-  for i := 1; i < 25; i++{
+  for i := 1; i < 40; i++{
     key := encodeUint64(i)
     val := encodeUint64(i)
     err = tree.Put(key, val)
@@ -249,6 +249,6 @@ func TestDelete(t *testing.T){
   }
 
   node, err = tree.storage.loadNode(tree.metadata.rootId)
-  node, err = tree.storage.loadNode(node.pointers[0].asNodeId())
-  t.Log("Node after deletion:", node.key)
+  node1, err := tree.storage.loadNode(node.pointers[0].asNodeId())
+  t.Log("Node after deletion:", node1.key)
 }

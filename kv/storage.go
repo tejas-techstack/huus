@@ -355,6 +355,22 @@ func (s *storage) writePage(pageId uint32, data []byte) error {
   return nil
 }
 
+func (s *storage) readPage(pageId uint32) ([]byte, error) {
+  if s.isFreePage(pageId) {
+    return nil, fmt.Errorf("Error reading a free page.")
+  }
+
+  page := make([]byte, s.pageSize)
+
+  offset := int64(int(pageId) * int(s.pageSize) + metadataSize)
+  _, err := s.fo.ReadAt(page, offset)
+  if err != nil {
+    return nil, fmt.Errorf("Error reading from file : %w", err)
+  }
+
+  return page,nil
+}
+
 func (s *storage) isFreePage(pageId uint32) bool {
   for i:=0; i<len(s.freePages); i++ {
     if pageId == s.freePages[i] {
@@ -416,6 +432,29 @@ func (s *storage) newPage() (uint32, error) {
   }
 
   return pageId, nil
+}
+
+func (s *storage) deleteNode(nodeId uint32) error {
+
+  if nodeId == uint32(0) {
+    return fmt.Errorf("Error trying to free the wrong page (ie page 0).")
+  }
+  // need to load all pageIds and free them.
+
+  pageId := nodeId
+  for pageId != uint32(0) {
+
+    pageData, err := s.readPageData(pageId)
+    if err != nil {
+      return fmt.Errorf("Error reading pageData : %w", err)
+    }
+
+    s.freePages = append(s.freePages, pageId)
+
+    pageId = decodeUint32(pageData[4:8])
+  }
+
+  return nil
 }
 
 func (s *storage) newNode() (uint32, error) {
