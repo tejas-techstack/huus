@@ -310,13 +310,13 @@ func (t *BPTree) findLeafToInsert(key []byte) (*node, error) {
     child, err = t.findChild(parent,key)
   }
 
-  child, err = t.findChild(parent, key)
-
-  if child.isLeaf {
-    return child, nil
+  child, err = t.findLeaf(key)
+  if err != nil {
+    return nil, fmt.Errorf("Error finding leaf : %w", err)
   }
 
-  return nil, fmt.Errorf("Unknown error while executing findLeafToInsert")
+  return child, nil
+
 }
 
 
