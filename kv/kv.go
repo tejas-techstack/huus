@@ -432,12 +432,11 @@ func (t *BPTree) splitNode(cur *node, parent *node) error {
 
   seperator := cur.key[t.minKeyNum]
 
+  // sibling is updated regardless of parent or child.
+  newNode.sibling = cur.sibling
+  cur.sibling = newNode.id
 
   if newNode.isLeaf {
-    // update sibling 
-    newNode.sibling = cur.sibling
-    cur.sibling = newNode.id
-
     // update keys.
     newNode.key = append(newNode.key, cur.key[t.minKeyNum : ]...)
     cur.key = cur.key[:t.minKeyNum]
@@ -665,6 +664,7 @@ func (t *BPTree) borrowKey(sibling, cur *node) error {
 }
 
 func (t *BPTree) mergeNode(sibling, cur *node) error {
+  
   // merge effectively causes deletion of a node.
   // this means the parent will have 1 key less.
   // this means that the parent can go below the threshold as well.
@@ -694,16 +694,84 @@ func (t *BPTree) mergeNode(sibling, cur *node) error {
   parent.key = append(parent.key[:index], parent.key[index+1:]...)
   parent.pointers = append(parent.pointers[:index+1], parent.pointers[index+2:]...)
 
-  if len(parent.key) < t.minKeyNum && parent.id != t.metadata.rootId{
-    return fmt.Errorf("Need to do merging of non leaf nodes.")
-  }
-
   if err := t.storage.updateNode(cur); err != nil {
     return fmt.Errorf("Error updating current : %w", err)
   }
 
-  if err := t.storage.updateNode(parent); err != nil {
-    return fmt.Errorf("Error updating parent : %w", err)
+
+  for parent.id != t.metadata.rootId {
+    if len(parent.key) < t.minKeyNum && parent.id != t.metadata.rootId{
+      // parent is loaded.
+      // we deleted a key from the parent.
+      // we now have to borrow or merge the parent.
+      // load the sibling of the parent.
+      
+      sibling, err := t.storage.loadNode(parent.sibling)
+      if err != nil {
+        return fmt.Errorf("Error loading sibling : %w", err)
+      }
+
+      if len(sibling.key) < t.minKeyNum + 1 {
+
+        // merge parent and sibling and demote key of grandparent.
+        return fmt.Errorf("Not yet finished merging non leaf node.")
+
+
+      } else {
+
+        // demote from parent and promote from sibling.
+        // exit since we are not reducing number of keys in parent.
+
+        grandparent, err := t.storage.loadNode(parent.parentId)
+        if err != nil {
+          return fmt.Errorf("Error Loading grandparent : %w", err)
+        }
+
+        //find key in grandparent.
+        index := 0
+        for i, v := range grandparent.pointers {
+          if v.asNodeId() == parent.id{
+            // found index.
+            index = i
+          }
+        }
+
+        parent.key = append(parent.key, grandparent.key[index])
+        parent.pointers = append(parent.pointers, sibling.pointers[0])
+
+        grandparent.key[index] = sibling.key[0]
+
+        sibling.key = sibling.key[1:]
+        sibling.pointers = sibling.pointers[1:]
+
+        // update parent grandparent and sibling.
+
+        if err := t.storage.updateNode(parent); err != nil {
+          return fmt.Errorf("Error updaing parent while borrowing: %w", err)
+        }
+
+        if err := t.storage.updateNode(grandparent); err != nil {
+          return fmt.Errorf("Error updating grandparent while borrowing : %w", err)
+        }
+
+        if err := t.storage.updateNode(sibling); err != nil {
+          return fmt.Errorf("Error updating parent's sibling while borrowing : %w", err)
+        }
+
+        return nil
+      }
+
+    // end if.
+    } else {
+      return fmt.Errorf("Not yet invented reducing height i guess.")
+    }
+  // end for loop.
+  }
+
+  // if it comes out of loop.
+  // parent is root and we need to check if height should be reduced.
+  if len(parent.key) < t.minKeyNum {
+    return fmt.Errorf("Reducing height has not yet been invented.")
   }
 
   return nil

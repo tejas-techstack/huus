@@ -224,13 +224,13 @@ func TestDelete(t *testing.T){
     } 
   }()
 
-  tree, err := Open(path.Join(dbDir, "example.db"), 20, 4096)
+  tree, err := Open(path.Join(dbDir, "example.db"), 5, 4096)
   if err != nil {
     t.Fatalf("Error opening tree : %s", err)
   }
 
 
-  for i := 1; i < 40; i++{
+  for i := 1; i < 16; i++{
     key := encodeUint64(i)
     val := encodeUint64(i)
     err = tree.Put(key, val)
@@ -239,16 +239,38 @@ func TestDelete(t *testing.T){
     }
   }
 
-  node, err := tree.storage.loadNode(tree.metadata.rootId)
-  node, err = tree.storage.loadNode(node.pointers[0].asNodeId())
+  root, err := tree.storage.loadNode(tree.metadata.rootId)
+  node, err := tree.storage.loadNode(root.pointers[0].asNodeId())
   t.Log("Node before deletion:", node.key)
+  for _, v := range node.pointers {
+    snode, _ := tree.storage.loadNode(v.asNodeId())
+    fmt.Println(snode.key)
+  }
+  node, err = tree.storage.loadNode(root.pointers[1].asNodeId())
+  t.Log("Node before deletion:", node.key)
+  for _, v := range node.pointers {
+    snode, _ := tree.storage.loadNode(v.asNodeId())
+    fmt.Println(snode.key)
+  }
 
-  _, err = tree.Delete(encodeUint64(9))
+  _, err = tree.Delete(encodeUint64(4))
   if err != nil {
     t.Fatalf("Error deleting key : %s", err)
   }
 
-  node, err = tree.storage.loadNode(tree.metadata.rootId)
-  node1, err := tree.storage.loadNode(node.pointers[0].asNodeId())
-  t.Log("Node after deletion:", node1.key)
+  root, err = tree.storage.loadNode(tree.metadata.rootId)
+  node, err = tree.storage.loadNode(root.pointers[0].asNodeId())
+  t.Log("Node after deletion:", node.key)
+  for _, v := range node.pointers {
+    snode, _ := tree.storage.loadNode(v.asNodeId())
+    fmt.Println(snode.key)
+  }
+
+
+  node, err = tree.storage.loadNode(root.pointers[1].asNodeId())
+  t.Log("Node after deletion:", node.key)
+  for _, v := range node.pointers {
+    snode, _ := tree.storage.loadNode(v.asNodeId())
+    fmt.Println(snode.key)
+  }
 }
