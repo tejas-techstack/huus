@@ -112,6 +112,8 @@ func (t *BPTree) Get(key []byte) ([]byte, bool ,error) {
     return nil, false, fmt.Errorf("Could not find leaf : %w", err)
   }
 
+
+
   for i := 0; i < len(leaf.key); i++ {
     if compare(leaf.key[i], key) == 0{
       return leaf.pointers[i].asValue(), true, nil
@@ -191,7 +193,6 @@ func (t *BPTree) insertIntoNode(cur *node,key []byte, pointer *pointer) error {
     return fmt.Errorf("Node is full cannot insert into node.")
   }
 
-  //TODO find index to insert at using key.
   index := 0
   for index < len(cur.key) {
     if compare(key, cur.key[index]) < 0 {
@@ -223,40 +224,38 @@ func (t *BPTree) insertIntoNode(cur *node,key []byte, pointer *pointer) error {
 }
 
 func (t *BPTree) findLeaf(key []byte) (*node, error) {
-  
   /* 
-  
     does not care if next node is full or not.
     returns error if key is not in range.
-
   */
-
-  node, err := t.storage.loadNode(t.metadata.rootId)
+  cur, err := t.storage.loadNode(t.metadata.rootId)
   if err != nil {
     return nil, fmt.Errorf("Error loading root : %w", err)
   }
 
-  for !node.isLeaf {
-    //TODO find index of child.
-    index, err := t.findChildIndex(node, key)
-    if err != nil {
-      return nil, fmt.Errorf("Could not find child index")
+  for !cur.isLeaf {
+    index := 0
+    for index < len(cur.key) {
+      if compare(key, cur.key[index]) < 0 {
+        break
+      }
+      index++
     }
 
-    childId := node.pointers[index+1].asNodeId()
-    node,err = t.storage.loadNode(childId)
+    childId := cur.pointers[index].asNodeId()
+    cur, err = t.storage.loadNode(childId)
     if err != nil {
       return nil, fmt.Errorf("Error loading child : %w", err)
     }
   }
 
-  return node, nil
+  return cur, nil
 }
 
 
 func (t *BPTree) findLeafToInsert(key []byte) (*node, error) {
 
-  // load root node, if it has t.Order - 1
+  // load root node, if it has t.Order
   // split the root.
   // load child, split if it is full and insert seperator
   // into the parent.
@@ -267,6 +266,7 @@ func (t *BPTree) findLeafToInsert(key []byte) (*node, error) {
   if err != nil {
     return nil, fmt.Errorf("Error inserting into leaf : %w", err)
   }
+
 
 
   if len(root.key) == int(t.order - 1){
@@ -288,7 +288,7 @@ func (t *BPTree) findLeafToInsert(key []byte) (*node, error) {
     return nil, fmt.Errorf("Error finding child : %w", err)
   }
 
-  if len(child.key) == int(t.order - 1) {
+  if len(child.key) >= int(t.order) - 1 {
     err := t.splitNode(child, parent)
     if err != nil {
       return nil, fmt.Errorf("Error splitting child : %w", err)
@@ -300,7 +300,7 @@ func (t *BPTree) findLeafToInsert(key []byte) (*node, error) {
     parent = child;
     child, err = t.findChild(parent, key)
 
-    if len(child.key) == int(t.order - 1) {
+    if len(child.key) >= int(t.order) - 1{
       err := t.splitNode(child, parent)
       if err != nil {
         return nil, fmt.Errorf("Error splitting child : %w", err)
@@ -374,7 +374,7 @@ func (t *BPTree) splitRoot() (*node, error) {
   }
 
   // change properties of newRoot and current Root.
-  
+ 
   err = t.splitNode(curRoot, newRoot)
   if err != nil {
     // revert changes to current root
@@ -399,7 +399,6 @@ func (t *BPTree) splitRoot() (*node, error) {
 
 func (t *BPTree) splitNode(cur *node, parent *node) error {
   // splitNode assumes cur and parent nodes have space present already.
-
   // create new node.
   // copy contents of cur node to new node
   // clear contents of cur node that were copied.
@@ -419,6 +418,10 @@ func (t *BPTree) splitNode(cur *node, parent *node) error {
     return fmt.Errorf("Error creating newNode : %w", err)
   }
 
+  // need to update current's parent id.
+  // in case it may be a root node that is being split
+  cur.parentId = parent.id
+
   newNode := &node {
     id : newNodeId,
     parentId : parent.id,
@@ -430,12 +433,11 @@ func (t *BPTree) splitNode(cur *node, parent *node) error {
 
   seperator := cur.key[t.minKeyNum]
 
+  // sibling is updated regardless of parent or child.
+  newNode.sibling = cur.sibling
+  cur.sibling = newNode.id
 
   if newNode.isLeaf {
-    // update sibling 
-    newNode.sibling = cur.sibling
-    cur.sibling = newNode.id
-
     // update keys.
     newNode.key = append(newNode.key, cur.key[t.minKeyNum : ]...)
     cur.key = cur.key[:t.minKeyNum]
@@ -481,11 +483,12 @@ func (t *BPTree) splitNode(cur *node, parent *node) error {
     return fmt.Errorf("Error updating child node : %w", err)
   }
 
+
   return nil
 }
 
 func (t *BPTree) insertKeyAt(cur *node, index int, key []byte) error {
-  if len(cur.key) == int(t.order - 1){
+  if len(cur.key) == int(t.order){
     return fmt.Errorf("Cannot insert into node as it is full.")
   }
 
@@ -504,7 +507,7 @@ func (t *BPTree) insertKeyAt(cur *node, index int, key []byte) error {
 }
 
 func (t *BPTree) insertValueAt(cur *node, index int, value []byte) error {
-  if len(cur.pointers) == int(t.order - 1) {
+  if len(cur.pointers) == int(t.order) {
     return fmt.Errorf("Cannot insert value, node is full")
   }
 
@@ -537,12 +540,250 @@ func (t *BPTree) insertNodeAt(cur *node, index int, child uint32) error {
   return nil
 }
 
+func (t *BPTree) Delete(key []byte) (bool, error) {
+
+  _, exists, err := t.Get(key)
+  if err != nil {
+    return false,fmt.Errorf("Error getting key %w", err)
+  }
+  if !exists {
+    return true, nil
+  }
+
+
+  leaf, err := t.findLeaf(key)
+  if err != nil {
+    return false,fmt.Errorf("Error searching for leaf %w", err)
+  }
+
+
+  err = t.removeKeyAtLeaf(leaf, key)
+  if err != nil {
+    return false,fmt.Errorf("Error removing key at leaf : %w", err)
+  }
+
+  return true, nil
+}
+
+func (t *BPTree) removeKeyAtLeaf(cur *node, key []byte) error {
+
+  if len(cur.key) == t.minKeyNum && cur.id != t.metadata.rootId{
+    for i, v := range cur.key {
+      if compare(v, key) == 0 {
+        cur.key = append(cur.key[:i], cur.key[i+1:]...)
+      }
+    }
+
+    if cur.sibling == uint32(0) {
+      return fmt.Errorf("Not yet implemented edge case.")
+    }
+
+    sibling, err := t.storage.loadNode(cur.sibling)
+    if err != nil {
+      return fmt.Errorf("Error loading sibling : %w", err)
+    }
+
+    if len(sibling.key) <= t.minKeyNum + 1 {
+      // merge.
+      err = t.mergeNode(sibling, cur)
+      if err != nil {
+        return fmt.Errorf("Error merging nodes : %w", err)
+      }
+
+      return nil
+    }
+
+    // else borrow.
+    err = t.borrowKey(sibling, cur)
+    if err != nil {
+      return fmt.Errorf("Error borrowing key : %w", err)
+    }
+
+    return nil
+  }
+
+  // no need to merge or borrow.
+  for i, v := range cur.key {
+    if compare(v, key) == 0 {
+      cur.key = append(cur.key[:i], cur.key[i+1:]...)
+    }
+  }
+
+  err := t.storage.updateNode(cur)
+  if err != nil {
+    return fmt.Errorf("Error updating node : %w", err)
+  }
+
+  return nil
+}
+
+func (t *BPTree) borrowKey(sibling, cur *node) error {
+  // NOTE: borrowKey is tested only with leaf nodes.
+  parent, err := t.storage.loadNode(cur.parentId)
+  if err != nil {
+    return fmt.Errorf("Error loading parent.")
+  }
+
+  bKey := sibling.key[0]
+  bVal := sibling.pointers[0]
+
+  sibling.key = sibling.key[1:]
+  sibling.pointers = sibling.pointers[1:]
+
+  cur.key = append(cur.key, bKey)
+  cur.pointers = append(cur.pointers, bVal)
+
+  index := 0
+  // find the postion in parent.
+  for i, v := range parent.pointers {
+    if v.asNodeId() == cur.id{
+      // found index.
+      index = i
+    }
+  }
+
+  // pointers[index] represents the node that has keys lesser than key[index]
+  // we need to change this one based on the borrow.
+
+  if compare(parent.key[index], bKey) == 0 {
+    parent.key[index] = sibling.key[0]
+    err = t.storage.updateNode(parent)
+    if err != nil {
+      return fmt.Errorf("Error updating parent : %w", err)
+    }
+  }
+
+  if err := t.storage.updateNode(cur); err != nil {
+    return fmt.Errorf("Error updating current : %w", err)
+  }
+  
+  if err := t.storage.updateNode(sibling); err != nil {
+    return fmt.Errorf("Error updating sibling : %w", err)
+  }
+
+  return nil
+}
+
+func (t *BPTree) mergeNode(sibling, cur *node) error {
+  
+  // merge effectively causes deletion of a node.
+  // this means the parent will have 1 key less.
+  // this means that the parent can go below the threshold as well.
+  // this means we have may have to merge/borrow from a non leaf node as well.
+ 
+  parent, err := t.storage.loadNode(cur.parentId)
+  if err != nil {
+    return fmt.Errorf("Error loading parent.")
+  }
+
+  cur.key = append(cur.key, sibling.key...)
+  cur.pointers = append(cur.pointers, sibling.pointers...)
+  cur.sibling = sibling.sibling
+
+  if err = t.storage.deleteNode(sibling.id); err != nil {
+    return fmt.Errorf("Error deleting node : %w", err)
+  }
+
+  index := 0
+  for i, v := range parent.pointers {
+    if v.asNodeId() == cur.id{
+      // found index.
+      index = i
+    }
+  }
+  
+  parent.key = append(parent.key[:index], parent.key[index+1:]...)
+  parent.pointers = append(parent.pointers[:index+1], parent.pointers[index+2:]...)
+
+  if err := t.storage.updateNode(cur); err != nil {
+    return fmt.Errorf("Error updating current : %w", err)
+  }
+
+
+  for parent.id != t.metadata.rootId {
+    if len(parent.key) < t.minKeyNum && parent.id != t.metadata.rootId{
+      // parent is loaded.
+      // we deleted a key from the parent.
+      // we now have to borrow or merge the parent.
+      // load the sibling of the parent.
+      
+      sibling, err := t.storage.loadNode(parent.sibling)
+      if err != nil {
+        return fmt.Errorf("Error loading sibling : %w", err)
+      }
+
+      if len(sibling.key) < t.minKeyNum + 1 {
+
+        // merge parent and sibling and demote key of grandparent.
+        return fmt.Errorf("Not yet finished merging non leaf node.")
+
+
+      } else {
+
+        // demote from parent and promote from sibling.
+        // exit since we are not reducing number of keys in parent.
+
+        grandparent, err := t.storage.loadNode(parent.parentId)
+        if err != nil {
+          return fmt.Errorf("Error Loading grandparent : %w", err)
+        }
+
+        //find key in grandparent.
+        index := 0
+        for i, v := range grandparent.pointers {
+          if v.asNodeId() == parent.id{
+            // found index.
+            index = i
+          }
+        }
+
+        parent.key = append(parent.key, grandparent.key[index])
+        parent.pointers = append(parent.pointers, sibling.pointers[0])
+
+        grandparent.key[index] = sibling.key[0]
+
+        sibling.key = sibling.key[1:]
+        sibling.pointers = sibling.pointers[1:]
+
+        // update parent grandparent and sibling.
+
+        if err := t.storage.updateNode(parent); err != nil {
+          return fmt.Errorf("Error updaing parent while borrowing: %w", err)
+        }
+
+        if err := t.storage.updateNode(grandparent); err != nil {
+          return fmt.Errorf("Error updating grandparent while borrowing : %w", err)
+        }
+
+        if err := t.storage.updateNode(sibling); err != nil {
+          return fmt.Errorf("Error updating parent's sibling while borrowing : %w", err)
+        }
+
+        return nil
+      }
+
+    // end if.
+    } else {
+      return fmt.Errorf("Not yet invented reducing height i guess.")
+    }
+  // end for loop.
+  }
+
+  // if it comes out of loop.
+  // parent is root and we need to check if height should be reduced.
+  if len(parent.key) < t.minKeyNum {
+    return fmt.Errorf("Reducing height has not yet been invented.")
+  }
+
+  return nil
+}
+
 func compare(byteA ,byteB []byte) int {
   return bytes.Compare(byteA, byteB)
 }
 
 func calcMinOrder(order uint16) int {
-  // minOrder is given by ceil(order/2) - 1
+  // minKeyNum is given by ceil(order/2) - 1
   d := (order / 2)
 	if order%2 == 0 {
 		return int(d - 1)
