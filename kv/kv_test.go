@@ -178,6 +178,7 @@ func TestSplitRoot(t *testing.T) {
     t.Fatalf("Error opening tree : %s", err)
   }
 
+
   for i := 1; i < 100; i++{
     key := encodeUint64(i)
     val := encodeUint64(i)
