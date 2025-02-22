@@ -662,8 +662,48 @@ func (t *BPTree) mergeNode(sibling, cur *node) error {
 
       if len(sibling.key) < t.minKeyNum + 1 {
 
-        // merge parent and sibling and demote key of grandparent.
-        return fmt.Errorf("Not yet finished merging non leaf node.")
+        grandparent, err := t.storage.loadNode(parent.parentId)
+        if err != nil {
+          return fmt.Errorf("Error loading grandparent.")
+        }
+
+        index := 0
+        for i, v := range grandparent.pointers {
+          if v.asNodeId() == parent.id{
+            // found index.
+            index = i
+          }
+        }
+
+        parent.sibling = sibling.sibling
+
+        demoteKey := grandparent.key[index]
+
+
+        grandparent.key = append(grandparent.key[:index], grandparent.key[index+1:]...)
+        grandparent.pointers = append(grandparent.pointers[:index+1], grandparent.pointers[index+2:]...)
+
+        parent.key = append(parent.key, demoteKey)
+        parent.key = append(parent.key, sibling.key...)
+        parent.pointers = append(parent.pointers, sibling.pointers...)
+
+        if err := t.storage.deleteNode(sibling.id);  err != nil {
+          return fmt.Errorf("Error deleting Node : %w", err)
+        }
+
+        if err := t.storage.updateNode(parent); err != nil {
+          return fmt.Errorf("Error updating parent : %w", err)
+        }
+
+        if err := t.storage.updateNode(grandparent); err != nil {
+          return fmt.Errorf("Error updating grandparent : %w", err)
+        }
+
+        // fmt.Println(grandparent.pointers[0].asNodeId())
+        // set parent as grandparent for next loop iteration
+        parent = grandparent
+
+        return nil
 
       } else {
 
@@ -708,7 +748,6 @@ func (t *BPTree) mergeNode(sibling, cur *node) error {
 
         return nil
       }
-
     // end if.
     } else {
       return fmt.Errorf("Not yet invented reducing height i guess.")
