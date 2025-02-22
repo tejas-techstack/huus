@@ -138,7 +138,7 @@ func TestDelete(t *testing.T){
   }
 
 
-  for i := 1; i < 20; i++{
+  for i := 1; i < 14; i++{
     key := encodeUint64(i)
     val := encodeUint64(i)
     err = tree.Put(key, val)

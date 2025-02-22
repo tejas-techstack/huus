@@ -653,8 +653,7 @@ func (t *BPTree) mergeNode(sibling, cur *node) error {
   }
 
   for parent.id != t.metadata.rootId {
-    if len(parent.key) < t.minKeyNum && parent.id != t.metadata.rootId{
-
+    if len(parent.key) < t.minKeyNum{
       sibling, err := t.storage.loadNode(parent.sibling)
       if err != nil {
         return fmt.Errorf("Error loading sibling : %w", err)
@@ -679,7 +678,6 @@ func (t *BPTree) mergeNode(sibling, cur *node) error {
 
         demoteKey := grandparent.key[index]
 
-
         grandparent.key = append(grandparent.key[:index], grandparent.key[index+1:]...)
         grandparent.pointers = append(grandparent.pointers[:index+1], grandparent.pointers[index+2:]...)
 
@@ -699,11 +697,8 @@ func (t *BPTree) mergeNode(sibling, cur *node) error {
           return fmt.Errorf("Error updating grandparent : %w", err)
         }
 
-        // fmt.Println(grandparent.pointers[0].asNodeId())
         // set parent as grandparent for next loop iteration
         parent = grandparent
-
-        return nil
 
       } else {
 
@@ -749,16 +744,18 @@ func (t *BPTree) mergeNode(sibling, cur *node) error {
         return nil
       }
     // end if.
-    } else {
-      return fmt.Errorf("Not yet invented reducing height i guess.")
     }
   // end for loop.
   }
 
-  // if it comes out of loop.
   // parent is root and we need to check if height should be reduced.
-  if len(parent.key) < t.minKeyNum {
-    return fmt.Errorf("Reducing height has not yet been invented.")
+  if len(parent.key) == 0 {
+    newRootId := parent.pointers[0].asNodeId()
+  
+    t.metadata.rootId = newRootId
+    if err := t.storage.updateMetadata(t.metadata); err != nil {
+      return fmt.Errorf("Error updating metadata : %w", err)
+    }
   }
 
   return nil

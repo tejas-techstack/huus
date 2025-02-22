@@ -11,6 +11,10 @@ func printTree(t *BPTree) error {
     return fmt.Errorf("Error loading node.")
   }
 
+  if root.key == nil {
+    return fmt.Errorf("Tree is empty.")
+  }
+
   printLevels(t, root , 0)
 
   return nil
