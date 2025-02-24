@@ -27,6 +27,11 @@ func printSpaces(level int ){
 }
 
 func printLevels(t *BPTree, cur *node, level int) {
+
+  if cur == nil {
+    return
+  }
+
   if cur.isLeaf {
     printSpaces(level)
     fmt.Printf("Level %d : %v\n",level, cur.key)

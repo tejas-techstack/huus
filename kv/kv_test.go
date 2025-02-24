@@ -150,7 +150,8 @@ func TestDelete(t *testing.T){
   fmt.Println("Tree before Deletion : ")
   printTree(tree)
 
-  _, err = tree.Delete(encodeUint64(4))
+  _, err = tree.Delete(encodeUint64(13))
+  _, err = tree.Delete(encodeUint64(12))
   if err != nil {
     t.Fatalf("Error deleting key : %s", err)
   }

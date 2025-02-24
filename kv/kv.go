@@ -537,7 +537,7 @@ func (t *BPTree) removeKeyAtLeaf(cur *node, key []byte) error {
     }
 
     if cur.sibling == uint32(0) {
-      return fmt.Errorf("Not yet implemented edge case.")
+      return fmt.Errorf("Need to merge or borrow from left node.")
     }
 
     sibling, err := t.storage.loadNode(cur.sibling)
@@ -623,7 +623,7 @@ func (t *BPTree) borrowKey(sibling, cur *node) error {
 }
 
 func (t *BPTree) mergeNode(sibling, cur *node) error {
- 
+  
   parent, err := t.storage.loadNode(cur.parentId)
   if err != nil {
     return fmt.Errorf("Error loading parent.")
@@ -652,8 +652,17 @@ func (t *BPTree) mergeNode(sibling, cur *node) error {
     return fmt.Errorf("Error updating current : %w", err)
   }
 
+  if err := t.storage.updateNode(parent); err != nil {
+    return fmt.Errorf("Error updating parent : %w", err)
+  }
+
   for parent.id != t.metadata.rootId {
     if len(parent.key) < t.minKeyNum{
+  
+      if parent.sibling == uint32(0) {
+        return fmt.Errorf("Need to borrow/merge from left node.")
+      }
+
       sibling, err := t.storage.loadNode(parent.sibling)
       if err != nil {
         return fmt.Errorf("Error loading sibling : %w", err)
