@@ -116,6 +116,7 @@ func TestSplitRoot(t *testing.T) {
     val := encodeUint64(i)
     err = tree.Put(key, val)
     if err != nil {
+      printTree(tree)
       t.Fatalf("Could not insert key : %s", err)
     }
   }
@@ -138,8 +139,8 @@ func TestDelete(t *testing.T){
   }
 
 
-  for i := 1; i < 14; i++{
-    key := encodeUint64(i)
+  for i := 1; i < 13; i++{
+    key := encodeUint64(i*3)
     val := encodeUint64(i)
     err = tree.Put(key, val)
     if err != nil {
@@ -150,8 +151,8 @@ func TestDelete(t *testing.T){
   fmt.Println("Tree before Deletion : ")
   printTree(tree)
 
-  _, err = tree.Delete(encodeUint64(13))
-  _, err = tree.Delete(encodeUint64(12))
+  _, err = tree.Delete(encodeUint64(24))
+  _, err = tree.Delete(encodeUint64(27))
   if err != nil {
     t.Fatalf("Error deleting key : %s", err)
   }

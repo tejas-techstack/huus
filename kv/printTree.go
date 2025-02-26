@@ -34,12 +34,12 @@ func printLevels(t *BPTree, cur *node, level int) {
 
   if cur.isLeaf {
     printSpaces(level)
-    fmt.Printf("Level %d : %v\n",level, cur.key)
+    fmt.Printf("Level %d : %v\n",level, cur)
     return
   }
 
   printSpaces(level)
-  fmt.Printf("Level %d : %v\n", level, cur.key)
+  fmt.Printf("Level %d : %v\n", level, cur)
   for _, v := range cur.pointers {
     child, _ := t.storage.loadNode(v.asNodeId())
     printLevels(t, child, level+1)
