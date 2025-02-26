@@ -640,16 +640,13 @@ func (t *BPTree) mergeNode(sibling, cur *node) error {
 
   for parent.id != t.metadata.rootId {
     if len(parent.key) < t.minKeyNum{
-      if parent.sibling == uint32(0) {
-        return fmt.Errorf("Need to borrow/merge from left node.")
-      }
 
       sibling, err := t.storage.loadNode(parent.sibling)
       if err != nil {
         return fmt.Errorf("Error loading sibling : %w", err)
       }
 
-      if len(sibling.key) < t.minKeyNum + 1 {
+      if len(sibling.key) < t.minKeyNum + 1 && sibling.id != uint32(0){
 
         grandparent, err := t.storage.loadNode(parent.parentId)
         if err != nil {
@@ -693,7 +690,6 @@ func (t *BPTree) mergeNode(sibling, cur *node) error {
 
       } else {
 
-        return fmt.Errorf("Need to borrow in non leaf node.")
         // demote from parent and promote from sibling.
         // exit since we are not reducing number of keys in parent.
 
@@ -759,6 +755,20 @@ func (t *BPTree) borrowFromLeft(cur *node) error {
   cur.key = append(parent.key[index:index+1], cur.key...)
   cur.pointers = append(leftSib.pointers[lastElem+1:], cur.pointers...)
 
+  /*
+  for _, v := range cur.pointers {
+    child, err := t.storage.loadNode(v.asNodeId())
+    if err != nil {
+      return fmt.Errorf("Error loading child to update parent id : %w", err)
+    }
+
+    child.parentId = cur.parentId
+    if err := t.storage.updateNode(child); err != nil {
+      return fmt.Errorf("Error updating child to update parent id : %w", err)
+    }
+  }
+*/
+
   parent.key[index] = leftSib.key[lastElem]
 
   leftSib.key = leftSib.key[0:lastElem]
@@ -810,6 +820,19 @@ func (t *BPTree) borrowFromRight(cur *node) error {
 
   cur.key = append(cur.key, parent.key[index])
   cur.pointers = append(cur.pointers, sibling.pointers[0])
+  /*
+  for _, v := range cur.pointers {
+    child, err := t.storage.loadNode(v.asNodeId())
+    if err != nil {
+      return fmt.Errorf("Error loading child to update parent id : %w", err)
+    }
+
+    child.parentId = cur.parentId
+    if err := t.storage.updateNode(child); err != nil {
+      return fmt.Errorf("Error updating child to update parent id : %w", err)
+    }
+  }
+  */
 
   parent.key[index] = sibling.key[0]
 
