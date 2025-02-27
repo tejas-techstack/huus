@@ -752,22 +752,20 @@ func (t *BPTree) borrowFromLeft(cur *node) error {
 
   index := len(parent.key) - 1
   lastElem := len(leftSib.key) - 1
-  cur.key = append(parent.key[index:index+1], cur.key...)
-  cur.pointers = append(leftSib.pointers[lastElem+1:], cur.pointers...)
 
-  /*
-  for _, v := range cur.pointers {
-    child, err := t.storage.loadNode(v.asNodeId())
+  if !leftSib.isLeaf{
+    child, err := t.storage.loadNode(leftSib.pointers[lastElem+1].asNodeId())
     if err != nil {
-      return fmt.Errorf("Error loading child to update parent id : %w", err)
+      return fmt.Errorf("Error loading child : %w", err)
     }
-
-    child.parentId = cur.parentId
+    child.parentId = cur.id
     if err := t.storage.updateNode(child); err != nil {
-      return fmt.Errorf("Error updating child to update parent id : %w", err)
+      return fmt.Errorf("Error updating child's parent id : %w", err)
     }
   }
-*/
+
+  cur.key = append(parent.key[index:index+1], cur.key...)
+  cur.pointers = append(leftSib.pointers[lastElem+1:], cur.pointers...)
 
   parent.key[index] = leftSib.key[lastElem]
 
@@ -804,6 +802,7 @@ func (t *BPTree) borrowFromRight(cur *node) error {
     return fmt.Errorf("Error loading sibling : %w", err)
   }
 
+
   parent, err := t.storage.loadNode(cur.parentId)
   if err != nil {
     return fmt.Errorf("Error loading parent : %w", err)
@@ -818,21 +817,19 @@ func (t *BPTree) borrowFromRight(cur *node) error {
     }
   }
 
-  cur.key = append(cur.key, parent.key[index])
-  cur.pointers = append(cur.pointers, sibling.pointers[0])
-  /*
-  for _, v := range cur.pointers {
-    child, err := t.storage.loadNode(v.asNodeId())
+  if !sibling.isLeaf{
+    child, err := t.storage.loadNode(sibling.pointers[0].asNodeId())
     if err != nil {
-      return fmt.Errorf("Error loading child to update parent id : %w", err)
+      return fmt.Errorf("Error loading child : %w", err)
     }
-
     child.parentId = cur.parentId
     if err := t.storage.updateNode(child); err != nil {
-      return fmt.Errorf("Error updating child to update parent id : %w", err)
+      return fmt.Errorf("Error updating child's parent id : %w", err)
     }
   }
-  */
+
+  cur.key = append(cur.key, parent.key[index])
+  cur.pointers = append(cur.pointers, sibling.pointers[0])
 
   parent.key[index] = sibling.key[0]
 
