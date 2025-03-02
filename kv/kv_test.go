@@ -140,8 +140,8 @@ func TestDelete(t *testing.T){
   }
 
 
-  for i := 1; i < 14; i++{
-    key := encodeUint64(i*4)
+  for i := 1; i < 20; i++{
+    key := encodeUint64(i)
     val := encodeUint64(i)
     err = tree.Put(key, val)
     if err != nil {
@@ -149,20 +149,10 @@ func TestDelete(t *testing.T){
     }
   }
 
-  _ = tree.Put(encodeUint64(17), encodeUint64(17))
-  _ = tree.Put(encodeUint64(18), encodeUint64(17))
-  _ = tree.Put(encodeUint64(19), encodeUint64(17))
-  _ = tree.Put(encodeUint64(15), encodeUint64(17))
-  _ = tree.Put(encodeUint64(25), encodeUint64(17))
-  _ = tree.Put(encodeUint64(26), encodeUint64(17))
-  _ = tree.Put(encodeUint64(27), encodeUint64(17))
-
   fmt.Println("Tree before Deletion : ")
   printTree(tree)
 
-  // _, err = tree.Delete(encodeUint64(24))
-  // _, err = tree.Delete(encodeUint64(27))
-  _, err = tree.Delete(encodeUint64(28))
+  _, err = tree.Delete(encodeUint64(4))
   if err != nil {
     t.Fatalf("Error deleting key : %s", err)
   }
