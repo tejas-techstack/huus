@@ -11,6 +11,11 @@ func printTree(t *BPTree) error {
     return fmt.Errorf("Error loading node.")
   }
 
+  if len(root.key) == 0 {
+    fmt.Println("Tree is empty.")
+    return nil
+  }
+
   printLevels(t, root , 0)
 
   return nil
@@ -22,15 +27,39 @@ func printSpaces(level int ){
   }
 }
 
+func printNode(level int, cur *node) {
+
+  fmt.Printf("Level %v: { %v %v keys : %v ", level, cur.id, cur.parentId, cur.key)
+
+  if cur.isLeaf {
+    fmt.Printf("Values : [ ")
+    for _, v := range cur.pointers {
+      fmt.Printf("%v ", v.asValue())
+    }
+  } else {
+    fmt.Printf("Node ids : [ ")
+    for _, v := range cur.pointers {
+      fmt.Printf("%v ", v.asNodeId())
+    }
+  }
+
+  fmt.Printf("] %v %v }\n", cur.isLeaf, cur.sibling)
+}
+
 func printLevels(t *BPTree, cur *node, level int) {
+
+  if cur == nil {
+    return
+  }
+
   if cur.isLeaf {
     printSpaces(level)
-    fmt.Printf("Level %d : %v\n",level, cur.key)
+    printNode(level, cur)
     return
   }
 
   printSpaces(level)
-  fmt.Printf("Level %d : %v\n", level, cur.key)
+  printNode(level, cur)
   for _, v := range cur.pointers {
     child, _ := t.storage.loadNode(v.asNodeId())
     printLevels(t, child, level+1)
