@@ -545,22 +545,48 @@ func (t *BPTree) Delete(key []byte) (bool, error) {
 }
 
 func (t *BPTree) removeKeyAtLeaf(cur *node, key []byte) error {
-
+  
   if len(cur.key) == t.minKeyNum && cur.id != t.metadata.rootId{
     for i, v := range cur.key {
       if compare(v, key) == 0 {
         cur.key = append(cur.key[:i], cur.key[i+1:]...)
+        cur.pointers = append(cur.pointers[:i], cur.pointers[i+1:]...)
       }
     }
 
     if cur.sibling == uint32(0) {
-      err := t.borrowFromLeft(cur)
-      if err != nil {
-        return fmt.Errorf("Error borrowing key from left : %w", err)
+      // this means we need to handle left hand side only.
+
+      parent, err := t.storage.loadNode(cur.parentId)
+      if err != nil{
+        return fmt.Errorf("Error loading parent : %w", err)
       }
 
+      leftSibId := parent.pointers[len(parent.pointers) - 2].asNodeId()
+      leftSib, err := t.storage.loadNode(leftSibId)
+      if err != nil {
+        return fmt.Errorf("Error loading left sibling : %w", err)
+      }
+
+      if len(leftSib.key) <= t.minKeyNum + 1 {
+        // merge
+        if err := t.mergeNode(cur); err != nil {
+          return fmt.Errorf("Error merging from Node : %w", err)
+        }
+
+      } else {
+        // borrow 
+        err := t.borrowFromLeft(cur)
+        if err != nil {
+          return fmt.Errorf("Error borrowing key from left : %w", err)
+        }
+      }
+
+      // left hand side was handled.
       return nil
     }
+    // end if to check if we need to handle left edge case
+    // borrow/ merge only from right.
 
     sibling, err := t.storage.loadNode(cur.sibling)
     if err != nil {
@@ -569,17 +595,15 @@ func (t *BPTree) removeKeyAtLeaf(cur *node, key []byte) error {
 
     if len(sibling.key) < t.minKeyNum + 1 {
       // merge.
-      err = t.mergeNode(sibling, cur)
+      err = t.mergeNode(cur)
       if err != nil {
         return fmt.Errorf("Error merging nodes : %w", err)
       }
-
-      return nil
-    }
-
-    // else borrow from right
-    if err := t.borrowFromRight(cur); err != nil {
-      return fmt.Errorf("Error borrowing key from right : %w", err)
+    } else {
+      // else borrow from right
+      if err := t.borrowFromRight(cur); err != nil {
+        return fmt.Errorf("Error borrowing key from right : %w", err)
+      }
     }
 
     return nil
@@ -589,6 +613,7 @@ func (t *BPTree) removeKeyAtLeaf(cur *node, key []byte) error {
   for i, v := range cur.key {
     if compare(v, key) == 0 {
       cur.key = append(cur.key[:i], cur.key[i+1:]...)
+      cur.pointers = append(cur.pointers[:i], cur.pointers[i+1:]...)
     }
   }
 
@@ -601,10 +626,16 @@ func (t *BPTree) removeKeyAtLeaf(cur *node, key []byte) error {
 }
 
 
-func (t *BPTree) mergeNode(sibling, cur *node) error {
-  
-  if err := t.mergeRight(cur); err != nil {
-    return fmt.Errorf("Error merging from the right node : %w", err)
+func (t *BPTree) mergeNode(cur *node) error {
+
+  if cur.sibling == uint32(0) {
+    if err := t.mergeLeftNode(cur); err != nil {
+      return fmt.Errorf("Error merging from left node : %w", err)
+    }
+  } else {
+    if err := t.mergeRight(cur); err != nil {
+      return fmt.Errorf("Error merging from the right node : %w", err)
+    }
   }
 
   parent, err := t.storage.loadNode(cur.parentId)
@@ -615,48 +646,64 @@ func (t *BPTree) mergeNode(sibling, cur *node) error {
   for parent.id != t.metadata.rootId {
     if len(parent.key) < t.minKeyNum{
 
-      sibling, err := t.storage.loadNode(parent.sibling)
-      if err != nil {
-        return fmt.Errorf("Error loading sibling : %w", err)
-      }
-
-      if len(sibling.key) < t.minKeyNum + 1 && sibling.id != uint32(0){
-
-        if err := t.mergeRight(parent); err != nil {
-          return fmt.Errorf("Error merging right : %w" ,err)
-        }
-
+      if parent.sibling == uint32(0) {
+        // handle merge/ borrow of left node.
         grandparent, err := t.storage.loadNode(parent.parentId)
-        if err != nil {
-          return fmt.Errorf("Error loading grandparent.")
+        if err != nil{
+          return fmt.Errorf("Error loading parent : %w", err)
         }
 
-        // set parent as grandparent for next loop iteration
-        parent = grandparent
+        leftSibId := grandparent.pointers[len(grandparent.pointers) - 2].asNodeId()
+        leftSib, err := t.storage.loadNode(leftSibId)
+        if err != nil {
+          return fmt.Errorf("Error loading left sibling : %w", err)
+        }
 
-      } else {
+        if len(leftSib.key) <= t.minKeyNum + 1 {
+          // merge
+          if err := t.mergeLeftNode(parent); err != nil {
+            return fmt.Errorf("Error merging from Node : %w", err)
+          }
 
-        // demote from parent and promote from sibling.
-        // exit since we are not reducing number of keys in parent.
-
-        if parent.sibling == uint32(0) {
-          if err := t.borrowFromLeft(parent); err != nil {
-            return fmt.Errorf("Error borrowing from left : %w", err)
+        } else {
+          // borrow 
+          err := t.borrowFromLeft(cur)
+          if err != nil {
+            return fmt.Errorf("Error borrowing key from left : %w", err)
           }
 
           return nil
         }
-
-        if err := t.borrowFromRight(parent); err != nil {
-          return fmt.Errorf("Error borrowing from right : %w", err)
+      } else {
+        // handle merge/ borrow from the right.
+        sibling, err := t.storage.loadNode(parent.sibling)
+        if err != nil {
+          return fmt.Errorf("Error loading sibling : %w", err)
         }
 
-        return nil
+        if len(sibling.key) <= t.minKeyNum + 1 {
+          if err := t.mergeRight(parent); err != nil {
+            return fmt.Errorf("Error merging right : %w", err)
+          }
+        } else {
+          if err := t.borrowFromRight(parent); err != nil {
+            return fmt.Errorf("Error borrowing from right : %w", err)
+          }
+
+          return nil
+        }
       }
-    // end if.
+  
+      grandparent, err := t.storage.loadNode(parent.parentId)
+      if err != nil {
+        return fmt.Errorf("Error loading grandparent : %w", err)
+      }
+
+      // set parent as grandparent for next loop iteration
+      parent = grandparent
     } else {
       return nil
-    }
+  }
   // end for loop.
   }
 
@@ -675,7 +722,6 @@ func (t *BPTree) mergeNode(sibling, cur *node) error {
 
 func (t *BPTree) borrowFromLeft(cur *node) error {
 
-
   if cur.sibling != uint32(0) {
     return fmt.Errorf("Should not be borrowing from left, right sibling is not nil.")
   }
@@ -693,7 +739,9 @@ func (t *BPTree) borrowFromLeft(cur *node) error {
   }
 
   if len(leftSib.key) < t.minKeyNum + 1 {
-    return fmt.Errorf("Cannot borrow from left need to merge to left.")
+    if err := t.mergeNode(cur); err != nil {
+      return fmt.Errorf("Error merging node : %w", err)
+    }
   }
 
   index := len(parent.key) - 1
@@ -749,6 +797,7 @@ func (t *BPTree) borrowFromRight(cur *node) error {
   }
 
 
+
   parent, err := t.storage.loadNode(cur.parentId)
   if err != nil {
     return fmt.Errorf("Error loading parent : %w", err)
@@ -798,44 +847,72 @@ func (t *BPTree) borrowFromRight(cur *node) error {
     return fmt.Errorf("Error updating sibling : %w", err)
   }
 
+
+
+
   return nil
 }
 
 // merges left sibling to current node.
 func (t *BPTree) mergeLeftNode(cur *node) error {
+
   if cur.sibling != uint32(0) {
     return fmt.Errorf("Should not be merging from left, right sibling is not nil.")
   }
 
-  /*
-  sibling, err := t.storage.loadNode(cur.sibling)
-  if err != nil {
-    return fmt.Errorf("Error loading sibling : %w", err)
-  }
-
-
   parent, err := t.storage.loadNode(cur.parentId)
-  if err != nil {
+  if err != nil{
     return fmt.Errorf("Error loading parent : %w", err)
   }
 
-  index := 0
-  // find the postion in parent.
-  for i, v := range parent.pointers {
-    if v.asNodeId() == cur.id{
-      // found index.
-      index = i
+  leftSibId := parent.pointers[len(parent.pointers) - 2].asNodeId()
+  leftSib, err := t.storage.loadNode(leftSibId)
+  if err != nil {
+    return fmt.Errorf("Error loading left sibling : %w", err)
+  }
+
+  if !cur.isLeaf{
+    cur.key = append(parent.key[len(parent.key)-1:], cur.key...)
+  }
+
+  if !cur.isLeaf{
+    for _, v := range leftSib.pointers {
+      child, err := t.storage.loadNode(v.asNodeId())
+      if err != nil {
+        return fmt.Errorf("Error loading child : %w", err)
+      }
+
+      child.parentId = cur.id
+      if err := t.storage.updateNode(child); err != nil {
+        return fmt.Errorf("Error updating Child : %w", err)
+      }
     }
   }
-  */
- 
+
+  cur.key = append(leftSib.key, cur.key...)
+  cur.pointers = append(leftSib.pointers, cur.pointers...)
+
+  parent.key = parent.key[:len(parent.key)-1]
+  parent.pointers = append(parent.pointers[:len(parent.pointers)-2], parent.pointers[len(parent.pointers)-1])
+
+  if err := t.storage.deleteNode(leftSib.id); err != nil {
+    return fmt.Errorf("Error deleting node : %w", err)
+  }
+
+  if err := t.storage.updateNode(cur); err != nil {
+    return fmt.Errorf("Error updating node : %w", err)
+  }
+
+  if err := t.storage.updateNode(parent); err != nil {
+    return fmt.Errorf("Error updating parent : %w", err)
+  }
+
   return nil
 }
 
 
 // merges right sibling to current node.
 func (t *BPTree) mergeRight(cur *node) error {
-
 
   if cur.sibling == uint32(0) {
     return fmt.Errorf("Right sibling is nil.")
@@ -851,6 +928,7 @@ func (t *BPTree) mergeRight(cur *node) error {
   if err != nil {
     return fmt.Errorf("Error loading parent : %w", err)
   }
+
 
   index := 0
   // find the postion in parent.
