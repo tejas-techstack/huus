@@ -2,14 +2,41 @@ package main
 
 import (
   "strings"
+  "regexp"
   "fmt"
   "bufio"
   "os"
 )
 
+
+var insert_regex = regexp.MustCompile(`(?i)INSERT\s*\(([a-zA-Z0-9]+),\s*([a-zA-Z0-9]+)\)`)
+var update_regex = regexp.MustCompile(`(?i)UPDATE\s*\(([a-zA-Z0-9]+),\s*([a-zA-Z0-9]+)\)`)
+var read_regex   = regexp.MustCompile(`(?i)READ\s*\(([a-zA-Z0-9]+)\s*\)`)
+var delete_regex = regexp.MustCompile(`(?i)DELETE\s*\(([a-zA-Z0-9]+)\s*\)`)
+
 func parseQuery(line string) (int, error){
-  // place holder code
-  fmt.Println(line)
+
+  switch {
+  case line == insert_regex.FindString(line):
+    fmt.Println("insert query")
+    matches := insert_regex.FindStringSubmatch(line)
+    fmt.Printf("entered key:%v Value:%v\n", matches[1], matches[2])
+  case line == update_regex.FindString(line):
+    fmt.Println("Update query")
+    matches := update_regex.FindStringSubmatch(line)
+    fmt.Printf("entered key:%v, Value:%v\n", matches[1], matches[2])
+  case line == read_regex.FindString(line):
+    fmt.Println("Read query")
+    matches := read_regex.FindStringSubmatch(line)
+    fmt.Printf("entered key:%v", matches[1])
+  case line == delete_regex.FindString(line):
+    fmt.Println("Delete query")
+    matches := delete_regex.FindStringSubmatch(line)
+    fmt.Printf("entered key:%v", matches[1])
+  default:
+    fmt.Println("Not a valid query")
+  }
+
   return 1, nil
 }
 
@@ -37,6 +64,7 @@ func StartQueryLoop() error {
     }
     if valid == -1 {
       fmt.Println("Invalid query")
+      return fmt.Errorf("Invalid Query")
     }
 
     line, err = readLine()
