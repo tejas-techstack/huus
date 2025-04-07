@@ -4,3 +4,4 @@ kv/go.mod
 *.prof
 *.out
 *temp*
+*.db

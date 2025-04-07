@@ -94,6 +94,16 @@ func TestPutAndGet(t *testing.T) {
   } else {
     t.Log("key exists:", val)
   }
+
+  val, exists, err = tree.GetInt(101)
+  if err != nil {
+    t.Fatalf("Error getting value : %s", err)
+  }
+  if !exists {
+    t.Log("Key does not exist")
+  } else {
+    t.Log("key exists:", val)
+  }
 }
 
 func TestSplitRoot(t *testing.T) {
