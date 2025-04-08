@@ -99,6 +99,10 @@ func (p *pointer) asNodeId() uint32 {
   return p.value.(uint32)
 }
 
+func (t *BPTree) GetInt(key int) ([]byte, bool, error) {
+  return t.Get(encodeUint64(key))
+}
+
 func (t *BPTree) Get(key []byte) ([]byte, bool ,error) {
   if t.metadata == nil {
     return nil, false, nil
@@ -119,8 +123,11 @@ func (t *BPTree) Get(key []byte) ([]byte, bool ,error) {
   return nil, false, nil 
 }
 
+func (t *BPTree) PutInt(key, value int) error {
+  return t.Put(encodeUint64(key), encodeUint64(value))
+}
 
-func (t *BPTree) Put(key, value []byte) (error) {
+func (t *BPTree) Put(key, value []byte) error {
 
   if len(value) > maxPageSize {
     return fmt.Errorf("value greater than pageSize")
@@ -521,6 +528,12 @@ func (t *BPTree) insertNodeAt(cur *node, index int, child uint32) error {
   return nil
 }
 
+func (t *BPTree) DeleteInt(key int) (bool, error) {
+  return t.Delete(encodeUint64(key))
+}
+
+// Delete returns true, nil if deletion was successful
+// returns false, nil if key did not exist
 func (t *BPTree) Delete(key []byte) (bool, error) {
 
   _, exists, err := t.Get(key)
