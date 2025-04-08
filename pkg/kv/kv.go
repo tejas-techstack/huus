@@ -528,6 +528,12 @@ func (t *BPTree) insertNodeAt(cur *node, index int, child uint32) error {
   return nil
 }
 
+func (t *BPTree) DeleteInt(key int) (bool, error) {
+  return t.Delete(encodeUint64(key))
+}
+
+// Delete returns true, nil if deletion was successful
+// returns false, nil if key did not exist
 func (t *BPTree) Delete(key []byte) (bool, error) {
 
   _, exists, err := t.Get(key)
