@@ -17,12 +17,12 @@ func BeginQueryLoop(tree *BPTree) error {
   for true {
     line, err := lychee.ReadLine()
     if err != nil {
-      return fmt.Errorf("Error in query loop:", err)
+      return fmt.Errorf("Error in query loop: %w", err)
     }
 
     query, err := lychee.ParseLine(line)
     if err != nil {
-      return fmt.Errorf("Error parsing line:", err)
+      return fmt.Errorf("Error parsing line: %w", err)
     }
 
     switch query {
