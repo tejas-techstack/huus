@@ -15,4 +15,14 @@ B+ trees is a variation of B trees that allows easier range queries by
 storing all the values only in the leaf nodes and linking all the nodes
 to form a chain.
 
+### Usage
+
+`make run` to run the db and start writing queries.
+`make clean` to clean the db.
+
+Available queries (not case sensitive):
+`INSERT (int, int)`
+`UPDATE (int, int)`
+`READ (int)`
+`DELETE (int)`
 

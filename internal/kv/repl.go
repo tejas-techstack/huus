@@ -1,8 +1,12 @@
+/*
+* Interacts with the parser to evaluate queries
+*/
+
 package kv
 
 import (
   "fmt"
-  lychee "github.com/tejas-techstack/huus/pkg/parser"
+  lychee "github.com/tejas-techstack/huus/internal/parser"
 )
 
 // invalid  : -1

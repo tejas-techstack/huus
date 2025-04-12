@@ -2,7 +2,7 @@ package main
 
 import (
   "fmt"
-  kv "github.com/tejas-techstack/huus/pkg/kv"
+  kv "github.com/tejas-techstack/huus/internal/kv"
 )
 
 func main(){
