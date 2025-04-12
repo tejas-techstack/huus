@@ -6,6 +6,10 @@ import (
 
 func printTree(t *BPTree) error {
   // print root.
+  if t.metadata == nil {
+    fmt.Println("Tree is empty.")
+    return nil
+  }
   root, err := t.storage.loadNode(t.metadata.rootId)
   if err != nil {
     return fmt.Errorf("Error loading node.")
