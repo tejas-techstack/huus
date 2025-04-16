@@ -52,7 +52,6 @@ func (t *BPTree) findLeafToInsert(key []byte) (*node, error) {
     return nil, fmt.Errorf("Error inserting into leaf : %w", err)
   }
 
-  // BUG: This should not be int(t.order)-1 you should split root only once it is full.
   if len(root.key) == int(t.order){
     root, err = t.splitRoot()
     if err != nil {
@@ -90,6 +89,9 @@ func (t *BPTree) findLeafToInsert(key []byte) (*node, error) {
       }
     }
 
+    // This should be replaced with functionallity that directly checks if the child is going to be
+    // the new child or if it is going to be the old child itself after the split.
+    // The below line does that but searches from the root which may not be required.
     child, err = t.findChild(parent,key)
   }
 

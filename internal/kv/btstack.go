@@ -1,3 +1,7 @@
+/*
+* The stack is only required for Deletion since
+* Insertion does not require backward traversal.
+*/
 package kv
 
 import "fmt"
@@ -11,11 +15,17 @@ type BTStack struct {
 func InitializeStack(rootId uint32) (*BTStack) {
   retStack := &BTStack{
     stack : []uint32{rootId},
-    top : -1,
+    top : 0,
     rootId : rootId,
   }
 
   return retStack
+}
+
+func (b *BTStack) updateZeroPointer(rootId uint32) {
+  b.rootId = rootId
+  b.stack[0] = rootId
+  return
 }
 
 // Takes nodeID as input and pushes to top of stack.
@@ -44,3 +54,25 @@ func (b *BTStack) showTop() uint32 {
   return b.stack[b.top]
 }
 
+// Returns parent id, ParentIsRoot.
+// ParentIsRoot is true if parent is root or the stack top has only root.
+// it is false if parent is not root.
+func (b *BTStack) getParent(nodeId uint32) (uint32, error) {
+  for i,v := range b.stack {
+    if v == nodeId {
+
+      if i-1 < 0 {
+        return b.rootId, nil
+      }
+      return b.stack[i-1], nil
+    }
+  }
+  return b.rootId, fmt.Errorf("The given node ID does not exist on stack.")
+}
+
+func (b *BTStack) emptyStack() {
+  b.stack = []uint32{b.rootId}
+  b.top = 0
+
+  return
+}

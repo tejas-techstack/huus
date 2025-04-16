@@ -11,23 +11,15 @@ func TestBTStack (t *testing.T) {
   fmt.Println(stack)
 
   stack.push(12)
-  stack.push(14)
-  stack.push(16)
   fmt.Println(stack)
 
-  x,err := stack.pop()
-  fmt.Println(x, stack)
+  x, _ := stack.pop()
+  fmt.Println(x)
 
-  _,err = stack.pop()
-  _,err = stack.pop()
-  _,err = stack.pop()
-  _,err = stack.pop()
+  fmt.Println(stack.showTop())
 
-  if err != nil {
-    t.Fatalf("Error occured : %s", err)
-  }
-
-  fmt.Println(stack)
-  y := stack.showTop()
-  fmt.Println(y, stack)
+  stack.push(12)
+  fmt.Println(stack.getParent(12))
+  
+  fmt.Println(stack.getParent(10))
 }

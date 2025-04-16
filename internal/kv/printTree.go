@@ -33,7 +33,7 @@ func printSpaces(level int ){
 
 func printNode(level int, cur *node) {
 
-  fmt.Printf("Level %v: { %v %v keys : %v ", level, cur.id, cur.parentId, cur.key)
+  fmt.Printf("Level %v: { %v keys : %v ", level, cur.id, cur.key)
 
   if cur.isLeaf {
     fmt.Printf("Values : [ ")
