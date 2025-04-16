@@ -19,6 +19,8 @@ type BPTree struct {
   metadata *treeMetaData
 
   minKeyNum int
+
+  stack *BTStack
 }
 
 type treeMetaData struct {
@@ -29,8 +31,6 @@ type treeMetaData struct {
 
 type node struct {
   id uint32
-
-  parentId uint32
 
   key [][]byte
   

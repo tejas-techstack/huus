@@ -9,7 +9,6 @@ import (
 //            - (order, rootId, pageSize)
 // node:
 // id : uint32
-// parentId : uint32
 // key : [][]byte
 // pointers []*pointer
 // isLeaf : bool
@@ -77,7 +76,6 @@ func encodeNode(curr *node) []byte {
   data := make([]byte, 0)
 
   data = append(data, encodeUint32(curr.id)...)
-  data = append(data, encodeUint32(curr.parentId)...)
   data = append(data, encodeBool(curr.isLeaf)...)
 
   // number of keys to read.
@@ -110,8 +108,6 @@ func decodeNode(data []byte) (*node, error) {
   pos := 0
 
   id := decodeUint32(data[pos: pos+4])
-  pos += 4
-  parentId := decodeUint32(data[pos: pos+4])
   pos += 4
   isLeaf := decodeBool(data[pos: pos+1])
   pos += 1
@@ -156,7 +152,6 @@ func decodeNode(data []byte) (*node, error) {
 
   newNode := &node{
     id : id,
-    parentId: parentId,
     isLeaf : isLeaf,
     key : key,
     pointers : pointers,

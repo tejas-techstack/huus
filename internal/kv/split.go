@@ -17,7 +17,6 @@ func (t *BPTree) splitRoot() (*node, error) {
 
   newRoot := &node {
     id : newRootId,
-    parentId : 0,
     key : [][]byte{},
     pointers : []*pointer{&pointer{t.metadata.rootId}},
     isLeaf : false,
@@ -44,19 +43,12 @@ func (t *BPTree) splitRoot() (*node, error) {
     return nil, fmt.Errorf("Failed to update metadata : %w", err)
   }
 
+  t.stack.updateZeroPointer(newRoot.id)
+
   return newRoot, nil
 }
 
 func (t *BPTree) splitNode(cur *node, parent *node) error {
-
-  /* splitNode assumes cur and parent nodes have space present already. */
-  var err error
-  if parent == nil {
-    parent, err = t.storage.loadNode(cur.parentId)
-    if err != nil {
-      return fmt.Errorf("Failed to load parent : %w",err)
-    }
-  }
 
   newNodeId, err := t.storage.newNode()
   if err != nil {
@@ -65,11 +57,9 @@ func (t *BPTree) splitNode(cur *node, parent *node) error {
 
   // update current's parent id in case of root node.
   // otherwise does not matter.
-  cur.parentId = parent.id
 
   newNode := &node {
     id : newNodeId,
-    parentId : parent.id,
     key : [][]byte{},
     pointers : []*pointer{},
     isLeaf : cur.isLeaf,
@@ -100,19 +90,6 @@ func (t *BPTree) splitNode(cur *node, parent *node) error {
     // update child pointers
     newNode.pointers = append(newNode.pointers,cur.pointers[t.minKeyNum+1 :]...)
     cur.pointers = cur.pointers[:t.minKeyNum + 1]
-
-    // update parent id for all nodes present in the transferring pointers.
-    for _, v := range newNode.pointers{
-      child, err := t.storage.loadNode(v.asNodeId())
-      if err != nil {
-        return fmt.Errorf("Error loading child : %w", err)
-      }
-
-      child.parentId = newNode.id
-      if err := t.storage.updateNode(child); err != nil {
-        return fmt.Errorf("Error updating child : %w", err)
-      }
-    }
   }
 
   // move seperator and newNode to parent.

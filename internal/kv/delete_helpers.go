@@ -9,6 +9,35 @@ import (
   "fmt"
 )
 
+func (t *BPTree) findLeafToDelete(key []byte) (*node, error) {
+  // does not care if next node is full or not.
+  // returns error if key is not in range.
+  cur, err := t.storage.loadNode(t.metadata.rootId)
+  if err != nil {
+    return nil, fmt.Errorf("Error loading root : %w", err)
+  }
+
+  for !cur.isLeaf {
+    index := 0
+    for index < len(cur.key) {
+      if compare(key, cur.key[index]) < 0 {
+        break
+      }
+      index++
+    }
+
+    childId := cur.pointers[index].asNodeId()
+    t.stack.push(childId)
+
+    cur, err = t.storage.loadNode(childId)
+    if err != nil {
+      return nil, fmt.Errorf("Error loading child : %w", err)
+    }
+  }
+
+  return cur, nil
+}
+
 func (t *BPTree) removeKeyAtLeaf(cur *node, key []byte) error {
 
   if len(cur.key) == t.minKeyNum && cur.id != t.metadata.rootId{
@@ -21,7 +50,11 @@ func (t *BPTree) removeKeyAtLeaf(cur *node, key []byte) error {
 
     if cur.sibling == uint32(0) {
       // this means we need to handle left hand side only.
-      parent, err := t.storage.loadNode(cur.parentId)
+      parentId, err := t.stack.getParent(cur.id)
+      if err != nil {
+        return fmt.Errorf("Error loading parent : %w", err)
+      }
+      parent, err := t.storage.loadNode(parentId)
       if err != nil{
         return fmt.Errorf("Error loading parent : %w", err)
       }
@@ -102,7 +135,11 @@ func (t *BPTree) mergeNode(cur *node) error {
     }
   }
 
-  parent, err := t.storage.loadNode(cur.parentId)
+  parentId, err := t.stack.getParent(cur.id)
+  if err != nil {
+    return fmt.Errorf("Error getting parent : %w", err)
+  }
+  parent, err := t.storage.loadNode(parentId)
   if err != nil {
     return fmt.Errorf("error loading parent : %w", err)
   }
@@ -112,9 +149,13 @@ func (t *BPTree) mergeNode(cur *node) error {
 
       if parent.sibling == uint32(0) {
         // handle merge/ borrow of left node.
-        grandparent, err := t.storage.loadNode(parent.parentId)
+        grandparentId, err := t.stack.getParent(parent.id)
+        if err != nil {
+          return fmt.Errorf("Error getting grandparent : %w", err)
+        }
+        grandparent, err := t.storage.loadNode(grandparentId)
         if err != nil{
-          return fmt.Errorf("Error loading parent : %w", err)
+          return fmt.Errorf("Error loading grandparent : %w", err)
         }
 
         leftSibId := grandparent.pointers[len(grandparent.pointers) - 2].asNodeId()
@@ -158,7 +199,12 @@ func (t *BPTree) mergeNode(cur *node) error {
         }
       }
   
-      grandparent, err := t.storage.loadNode(parent.parentId)
+
+      grandparentId, err := t.stack.getParent(parent.id)
+      if err != nil {
+        return fmt.Errorf("Error getting grandparent : %w", err)
+      }
+      grandparent, err := t.storage.loadNode(grandparentId)
       if err != nil {
         return fmt.Errorf("Error loading grandparent : %w", err)
       }
@@ -179,6 +225,8 @@ func (t *BPTree) mergeNode(cur *node) error {
     if err := t.storage.updateMetadata(t.metadata); err != nil {
       return fmt.Errorf("Error updating metadata : %w", err)
     }
+
+    t.stack.updateZeroPointer(newRootId)
   }
 
   return nil
@@ -190,7 +238,11 @@ func (t *BPTree) borrowFromLeft(cur *node) error {
     return fmt.Errorf("Should not be borrowing from left, right sibling is not nil.")
   }
 
-  parent, err := t.storage.loadNode(cur.parentId)
+  parentId,err := t.stack.getParent(cur.id)
+  if err != nil {
+    return fmt.Errorf("Error getting parent : %w", err)
+  }
+  parent, err := t.storage.loadNode(parentId)
   if err != nil{
     return fmt.Errorf("Error loading parent : %w", err)
   }
@@ -210,17 +262,6 @@ func (t *BPTree) borrowFromLeft(cur *node) error {
 
   index := len(parent.key) - 1
   lastElem := len(leftSib.key) - 1
-
-  if !leftSib.isLeaf{
-    child, err := t.storage.loadNode(leftSib.pointers[lastElem+1].asNodeId())
-    if err != nil {
-      return fmt.Errorf("Error loading child : %w", err)
-    }
-    child.parentId = cur.id
-    if err := t.storage.updateNode(child); err != nil {
-      return fmt.Errorf("Error updating child's parent id : %w", err)
-    }
-  }
 
   cur.key = append(parent.key[index:index+1], cur.key...)
   cur.pointers = append(leftSib.pointers[lastElem+1:], cur.pointers...)
@@ -260,9 +301,11 @@ func (t *BPTree) borrowFromRight(cur *node) error {
     return fmt.Errorf("Error loading sibling : %w", err)
   }
 
-
-
-  parent, err := t.storage.loadNode(cur.parentId)
+  parentId,err := t.stack.getParent(cur.id)
+  if err != nil {
+    return fmt.Errorf("Error getting parent : %w", err)
+  }
+  parent, err := t.storage.loadNode(parentId)
   if err != nil {
     return fmt.Errorf("Error loading parent : %w", err)
   }
@@ -273,17 +316,6 @@ func (t *BPTree) borrowFromRight(cur *node) error {
     if v.asNodeId() == cur.id{
       // found index.
       index = i
-    }
-  }
-
-  if !sibling.isLeaf{
-    child, err := t.storage.loadNode(sibling.pointers[0].asNodeId())
-    if err != nil {
-      return fmt.Errorf("Error loading child : %w", err)
-    }
-    child.parentId = cur.parentId
-    if err := t.storage.updateNode(child); err != nil {
-      return fmt.Errorf("Error updating child's parent id : %w", err)
     }
   }
 
@@ -321,7 +353,11 @@ func (t *BPTree) mergeLeftNode(cur *node) error {
     return fmt.Errorf("Should not be merging from left, right sibling is not nil.")
   }
 
-  parent, err := t.storage.loadNode(cur.parentId)
+  parentId, err := t.stack.getParent(cur.id)
+  if err != nil {
+    return fmt.Errorf("Error getting parent : %w", err)
+  }
+  parent, err := t.storage.loadNode(parentId)
   if err != nil{
     return fmt.Errorf("Error loading parent : %w", err)
   }
@@ -334,20 +370,6 @@ func (t *BPTree) mergeLeftNode(cur *node) error {
 
   if !cur.isLeaf{
     cur.key = append(parent.key[len(parent.key)-1:], cur.key...)
-  }
-
-  if !cur.isLeaf{
-    for _, v := range leftSib.pointers {
-      child, err := t.storage.loadNode(v.asNodeId())
-      if err != nil {
-        return fmt.Errorf("Error loading child : %w", err)
-      }
-
-      child.parentId = cur.id
-      if err := t.storage.updateNode(child); err != nil {
-        return fmt.Errorf("Error updating Child : %w", err)
-      }
-    }
   }
 
   cur.key = append(leftSib.key, cur.key...)
@@ -385,7 +407,11 @@ func (t *BPTree) mergeRight(cur *node) error {
   }
 
 
-  parent, err := t.storage.loadNode(cur.parentId)
+  parentId,err := t.stack.getParent(cur.id)
+  if err != nil {
+    return fmt.Errorf("Error getting parent : %w", err)
+  }
+  parent, err := t.storage.loadNode(parentId)
   if err != nil {
     return fmt.Errorf("Error loading parent : %w", err)
   }
@@ -408,20 +434,6 @@ func (t *BPTree) mergeRight(cur *node) error {
   cur.pointers = append(cur.pointers, sibling.pointers...)
   cur.sibling = sibling.sibling
 
-  if !cur.isLeaf {
-    for _, v := range cur.pointers {
-      child, err := t.storage.loadNode(v.asNodeId())
-      if err != nil {
-        return fmt.Errorf("Error loading child : %w", err)
-      }
-
-      child.parentId = cur.id 
-      if err := t.storage.updateNode(child); err != nil {
-        return fmt.Errorf("Error updating child : %w", err)
-      }
-    }
-  }
-
   if err = t.storage.deleteNode(sibling.id); err != nil {
     return fmt.Errorf("Error deleting node : %w", err)
   }
@@ -439,5 +451,3 @@ func (t *BPTree) mergeRight(cur *node) error {
 
   return nil
 }
-
-

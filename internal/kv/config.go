@@ -68,5 +68,7 @@ func (t *BPTree) initializeRoot(key, value []byte) error {
     return fmt.Errorf("Error updating metadata : %w", err)
   }
 
+  t.stack = InitializeStack(rootId)
+
   return nil
 }

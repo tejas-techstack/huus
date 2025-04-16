@@ -62,11 +62,11 @@ func (t *BPTree) Put(key, value []byte) error {
     return fmt.Errorf("Put failed : %w", err)
   }
 
-  err = t.insertIntoNode(leaf,key, &pointer{value})
+  err = t.insertIntoNode(leaf, key, &pointer{value})
   if err != nil {
     return fmt.Errorf("Failed to insert into node : %w", err)
   }
-  
+
   return nil
 }
 
@@ -87,7 +87,7 @@ func (t *BPTree) Delete(key []byte) (bool, error) {
     return true, nil
   }
 
-  leaf, err := t.findLeaf(key)
+  leaf, err := t.findLeafToDelete(key)
   if err != nil {
     return false,fmt.Errorf("Error searching for leaf %w", err)
   }
@@ -96,6 +96,10 @@ func (t *BPTree) Delete(key []byte) (bool, error) {
   if err != nil {
     return false,fmt.Errorf("Error removing key at leaf : %w", err)
   }
+
+  // Empty stack after deletion.
+  // If done right should already be empty?
+  t.stack.emptyStack()
 
   return true, nil
 }
