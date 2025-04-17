@@ -2,7 +2,7 @@
 * Helper functions that control node splits.
 */
 
-package kv
+package engine
 
 import (
   "fmt"

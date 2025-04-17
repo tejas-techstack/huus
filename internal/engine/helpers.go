@@ -2,7 +2,7 @@
 * Generic helper functions that can be used everywhere.
 */
 
-package kv
+package engine
 
 import (
   "fmt"

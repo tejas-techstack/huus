@@ -1,7 +1,7 @@
 /*
 * This is an extension of storage functionallity.
 */
-package kv
+package engine
 
 import (
   "fmt"

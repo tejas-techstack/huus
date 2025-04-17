@@ -2,7 +2,7 @@
 * Contains the functions that are required to setup the engine.
 */
 
-package kv
+package engine
 
 import (
   "fmt"
