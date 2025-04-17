@@ -6,6 +6,10 @@ import (
 
 func printTree(t *BPTree) error {
   // print root.
+  if t.metadata == nil {
+    fmt.Println("Tree is empty.")
+    return nil
+  }
   root, err := t.storage.loadNode(t.metadata.rootId)
   if err != nil {
     return fmt.Errorf("Error loading node.")
@@ -29,7 +33,7 @@ func printSpaces(level int ){
 
 func printNode(level int, cur *node) {
 
-  fmt.Printf("Level %v: { %v %v keys : %v ", level, cur.id, cur.parentId, cur.key)
+  fmt.Printf("Level %v: { %v keys : %v ", level, cur.id, cur.key)
 
   if cur.isLeaf {
     fmt.Printf("Values : [ ")

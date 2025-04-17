@@ -9,7 +9,6 @@ func TestEncodeNode(t *testing.T) {
   newNode := &node{
     id : uint32(42),
     isLeaf : false,
-    parentId : uint32(12),
     key : [][]byte{
       {1,2,3,4},
       {5,6,7,8},
