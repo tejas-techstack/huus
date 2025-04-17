@@ -2,7 +2,7 @@
 * Interacts with the parser to evaluate queries
 */
 
-package kv
+package engine
 
 import (
   "fmt"

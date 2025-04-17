@@ -3,7 +3,7 @@
 * Everything else is intended to be internal to the library.
 */
 
-package kv
+package engine
 
 import (
   "fmt"

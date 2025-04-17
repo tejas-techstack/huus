@@ -2,14 +2,14 @@ package main
 
 import (
   "fmt"
-  kv "github.com/tejas-techstack/huus/internal/kv"
+  engine "github.com/tejas-techstack/huus/internal/engine"
 )
 
 func main(){
 
-  tree, _ := kv.Open("./example.db", 10, 4096)
+  tree, _ := engine.Open("./example.db", 10, 4096)
 
-  err := kv.BeginQueryLoop(tree)
+  err := engine.BeginQueryLoop(tree)
   if err != nil {
     fmt.Println("Error :", err)
     return
