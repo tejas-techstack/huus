@@ -19,21 +19,21 @@ func Open(filePath string, order uint16, pageSize uint16) (*BPTree, error) {
 
   // loads metadata from file header.
   // header has a fixed size and cannot be modified.
-  metadata, err := storage.loadMetadata()
+  metadata, err := storage.loadCustomMetadata()
   if err != nil {
     return nil, fmt.Errorf("failed to init the metadata: %w", err)
   }
 
   // metdata != nil takes care of the case 
   // where the tree is not yet initialized.
-  if metadata != nil && metadata.order != order {
+  if metadata != nil && metadata.order != order{
     return nil, fmt.Errorf("Tried to open a tree with order %v, but has order %v", metadata.order, defaultOrder)
   }
   minKeyNum := calcMinOrder(order)
 
   fmt.Println("Using tree:", filepath.Base(filePath))
 
-  return &BPTree{order : order, storage : storage, metadata : metadata, minKeyNum : minKeyNum}, nil
+ return &BPTree{order : order, storage : storage, metadata : metadata, minKeyNum : minKeyNum}, nil
 }
 
 // Initializes the root node on first insert.

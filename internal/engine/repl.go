@@ -7,6 +7,7 @@ package engine
 import (
   "fmt"
   lychee "github.com/tejas-techstack/huus/internal/parser"
+  wal "github.com/tejas-techstack/huus/internal/wal"
 )
 
 // invalid  : -1
@@ -18,6 +19,15 @@ import (
 // print  : 99 (debugging only will remove.)
 
 func BeginQueryLoop(tree *BPTree) error {
+
+  fmt.Println(tree)
+
+  // create a logger object for wal.
+  lo, err := wal.OpenLogger()
+  if err != nil {
+    return fmt.Errorf("Error opening log file : %w", err)
+  }
+
   for true {
     line, err := lychee.ReadLine()
     if err != nil {
@@ -27,6 +37,10 @@ func BeginQueryLoop(tree *BPTree) error {
     query, err := lychee.ParseLine(line)
     if err != nil {
       return fmt.Errorf("Error parsing line: %w", err)
+    }
+
+    if err = lo.LogQuery(line); err != nil {
+      return fmt.Errorf("Error logging query : %w", err)
     }
 
     switch query {

@@ -59,17 +59,6 @@ func newStorage (path string, pageSize uint16, order uint16) (*storage, error){
       metadata : &storageMetadata{pageSize, 1, nil,},
     }
   
-    /*
-    rootId,_ := s.newPage()
-    custom := encodeMetadata(&treeMetaData{
-      order : order,
-      rootId : rootId,
-      pageSize : s.pageSize,
-    })
-
-    s.metadata.custom = custom
-    */
-
     if err := s.writeStorageMetadata(s.metadata); err != nil {
       return nil, fmt.Errorf("Error Writing metadata : %w", err)
     }
@@ -138,7 +127,7 @@ func readStorageMetadata(fo *os.File) (*storageMetadata, error) {
   return metadata, nil
 }
 
-func (s *storage) loadMetadata() (*treeMetaData, error) {
+func (s *storage) loadCustomMetadata() (*treeMetaData, error) {
   if s.metadata.custom == nil {
     return nil, nil
   }
@@ -162,7 +151,6 @@ func (s *storage) updateMetadata(tmd *treeMetaData) error {
   }
 
   return nil
-  // return fmt.Errorf("Not yet implemented")
 }
 
 func (s *storage) loadNodeRaw(nodeId uint32) ([]byte, error) {
