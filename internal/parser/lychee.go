@@ -9,12 +9,15 @@ import (
   "os"
 )
 
+// DB operations:
 var insert_regex = regexp.MustCompile(`(?i)INSERT\s*\(([a-zA-Z0-9]+),\s*([a-zA-Z0-9]+)\)`)
 var update_regex = regexp.MustCompile(`(?i)UPDATE\s*\(([a-zA-Z0-9]+),\s*([a-zA-Z0-9]+)\)`)
 var read_regex   = regexp.MustCompile(`(?i)READ\s*\(([a-zA-Z0-9]+)\s*\)`)
 var delete_regex = regexp.MustCompile(`(?i)DELETE\s*\(([a-zA-Z0-9]+)\s*\)`)
-var exit_regex   = regexp.MustCompile(`(?i)EXIT`)
-var print_regex  = regexp.MustCompile(`(?i)PRINT`)
+
+// DB Interactions:
+var exit_regex   = regexp.MustCompile(`(?i)\.EXIT`)
+var print_regex  = regexp.MustCompile(`(?i)\.PRINT`)
 
 func ParseInsert(line string) (int, int, error) {
   matches := insert_regex.FindStringSubmatch(line)

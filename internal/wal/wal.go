@@ -21,9 +21,10 @@ func OpenLogger() (*logger, error){
 }
 
 func (l *logger) LogQuery(query string) error {
-
+  if string(query[0]) == "." {
+    return nil
+  }
   query += "\n"
-
   n, err := l.fo.WriteString(query)
   if err != nil {
     return fmt.Errorf("Error appending to log file : %w", err)
