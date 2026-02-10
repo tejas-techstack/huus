@@ -24,7 +24,6 @@ A persistent, B+ tree based key-value store written in Go. Huus demonstrates mod
 - [Project Structure](#project-structure)
 - [Development](#development)
 - [Testing](#testing)
-- [Performance](#performance)
 - [Contributing](#contributing)
 - [License](#license)
 
@@ -268,49 +267,18 @@ Huus includes comprehensive tests covering:
 # Run all tests
 go test ./...
 
-# Run tests with coverage
-go test -cover ./...
-
-# Run tests in a specific package
-go test ./internal/engine
-
-# Run tests verbosely
-go test -v ./...
 ```
 
 ### Test Coverage
 
 The project includes tests for:
-- ✅ B+ Tree stack operations
-- ✅ Node encoding/decoding
-- ✅ Insert, update, and delete operations
-- ✅ Tree splitting on overflow
-- ✅ Storage layer operations
-- ✅ Metadata persistence
+- B+ Tree stack operations
+- Node encoding/decoding
+- Insert, update, and delete operations
+- Tree splitting on overflow
+- Storage layer operations
+- Metadata persistence
 
-## Performance
-
-### Time Complexity
-
-| Operation | Average Case | Worst Case |
-|-----------|--------------|------------|
-| Search    | O(log n)     | O(log n)   |
-| Insert    | O(log n)     | O(log n)   |
-| Delete    | O(log n)     | O(log n)   |
-| Range Scan| O(log n + k) | O(log n + k)|
-
-Where `n` is the number of keys and `k` is the number of keys in the range.
-
-### Space Complexity
-
-- **Disk Space**: O(n) where n is the number of key-value pairs
-- **Memory**: O(log n) for the traversal stack
-
-### Tuning
-
-- **Higher Order**: Reduces tree height but increases node size
-- **Larger Page Size**: Reduces number of disk reads but increases memory per node
-- **Smaller Order**: Better for in-memory operations, more frequent splits
 
 ## Contributing
 
@@ -349,4 +317,4 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ---
 
-**Note**: This is an educational project designed to demonstrate B+ tree data structures and database internals. For production use cases, consider established solutions like BadgerDB, BoltDB, or LevelDB.
+**Note**: This is an educational project designed to demonstrate B+ tree data structures and database internals.
