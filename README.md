@@ -345,7 +345,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 - [B-tree - Wikipedia](https://en.wikipedia.org/wiki/B-tree)
 - [B+ Tree - Wikipedia](https://en.wikipedia.org/wiki/B%2B_tree)
-- [Database Internals by Alex Petrov](https://www.databass.dev/)
+- [Database Internals by Alex Petrov](https://www.oreilly.com/library/view/database-internals/9781492040347/)
 
 ---
 
