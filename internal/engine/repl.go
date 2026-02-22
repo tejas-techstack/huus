@@ -45,8 +45,6 @@ func BeginQueryLoop(tree *BPTree) error {
       if err != nil {
         return fmt.Errorf("Error putting value : %w", err)
       }
-
-      fmt.Println("Inserted successfully")
     case 2:
       _, _, err := lychee.ParseUpdate(line)
       if err != nil {

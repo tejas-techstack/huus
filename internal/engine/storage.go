@@ -34,6 +34,11 @@ type storageMetadata struct {
 }
 
 func newStorage (path string, pageSize uint16, order uint16) (*storage, error){
+	_, err := os.Stat(path)
+	if err == nil {
+    fmt.Println("WARNING: Tree being loaded from existing file", path, "Expect Weird behavior since loading the tree from disk seems to be corrupted.")
+  }
+
 
   fo, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE, 0644)
   if err != nil {

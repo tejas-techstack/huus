@@ -43,6 +43,18 @@ func (t *BPTree) PutInt(key, value int) error {
 // Returns error if any.
 func (t *BPTree) Put(key, value []byte) error {
 
+  // TODO : BAD CODE, THIS WILL CAUSE A READ EVERYSINGlE TIME A WRITE HAPPENS
+  // Ideally the write should propogate to the end of the tree and there if the key is found
+  // to already exist then it should say key already exists and return.
+  _, exists, err := t.Get(key)
+  if err != nil {
+    return fmt.Errorf("Error Checking if key exists : %w", err)
+  }
+  if exists {
+    fmt.Println("Key", decodeUint64(key), "already exists")
+    return nil
+  }
+
   if len(value) > maxPageSize {
     return fmt.Errorf("value greater than pageSize")
   }
