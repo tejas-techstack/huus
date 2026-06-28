@@ -9,6 +9,14 @@ import (
   "fmt"
 )
 
+func (t *BPTree) Sync() error {
+  return t.storage.sync()
+}
+
+func (t *BPTree) Close() error {
+  return t.storage.close()
+}
+
 // Implements the Get function but takes input as int.
 func (t *BPTree) GetInt(key int) ([]byte, bool, error) {
   return t.Get(encodeUint64(key))

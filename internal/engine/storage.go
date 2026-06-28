@@ -24,6 +24,11 @@ type storage struct {
   lastPageId uint32
 
   metadata *storageMetadata
+
+	// Page cache that is in memory.
+	// Key is pageId.
+	// BUG: CURRENT ITERATION CACHE IS UNBOUNDED
+  cache map[uint32][]byte
 }
 
 type storageMetadata struct {
@@ -57,6 +62,7 @@ func newStorage (path string, pageSize uint16, order uint16) (*storage, error){
       freePages: nil,
       lastPageId : 1,
       metadata : &storageMetadata{pageSize, 1, nil,},
+      cache : make(map[uint32][]byte),
     }
   
     /*
@@ -74,7 +80,7 @@ func newStorage (path string, pageSize uint16, order uint16) (*storage, error){
       return nil, fmt.Errorf("Error Writing metadata : %w", err)
     }
 
-    if err := s.flush(); err != nil {
+    if err := s.sync(); err != nil {
       return nil, fmt.Errorf("Error flushing the file : %w", err)
     }
 
@@ -97,7 +103,50 @@ func newStorage (path string, pageSize uint16, order uint16) (*storage, error){
   lastPageId := metadata.lastPageId
   
   // BUG: freePages initialized to nil this needs to be changed.
-  return &storage{fo, pageSize, nil, lastPageId, metadata}, nil
+  return &storage{
+    fo : fo,
+    pageSize : pageSize,
+    freePages : nil,
+    lastPageId : lastPageId,
+    metadata : metadata,
+    cache : make(map[uint32][]byte),
+  }, nil
+}
+
+
+// Return cached buffer, If it is not in memory then read it from disk
+func (s *storage) getPage(pageId uint32) ([]byte, error) {
+  if buf, ok := s.cache[pageId]; ok {
+    return buf, nil
+  }
+
+  buf := make([]byte, s.pageSize)
+  offset := int64(int(pageId) * int(s.pageSize) + metadataSize)
+  if _, err := s.fo.ReadAt(buf, offset); err != nil {
+    return nil, fmt.Errorf("Error reading page %d : %w", pageId, err)
+  }
+
+  s.cache[pageId] = buf
+  return buf, nil
+}
+
+func (s *storage) setPage(pageId uint32, data []byte) error {
+  buf, ok := s.cache[pageId]
+  if !ok {
+    buf = make([]byte, s.pageSize)
+    s.cache[pageId] = buf
+  }
+
+  // data may be shorter than a full page, so clear before copying.
+  clear(buf)
+  copy(buf, data)
+
+  offset := int64(int(pageId) * int(s.pageSize) + metadataSize)
+  if _, err := s.fo.WriteAt(buf, offset); err != nil {
+    return fmt.Errorf("Error writing page %d : %w", pageId, err)
+  }
+
+  return nil
 }
 
 func (s *storage) writeStorageMetadata(md *storageMetadata) error {
@@ -108,14 +157,9 @@ func (s *storage) writeStorageMetadata(md *storageMetadata) error {
   n, err := s.fo.WriteAt(dataToWrite, offset)
   if err != nil {
     return fmt.Errorf("Error writing to page : %w", err)
-  } 
+  }
   if n != len(dataToWrite) {
     return fmt.Errorf("Bytes written lesser than given bytes.")
-  }
-
-  err = s.flush()
-  if err != nil {
-    return fmt.Errorf("Error flushing to file : %w", err)
   }
 
   return nil
@@ -167,24 +211,25 @@ func (s *storage) updateMetadata(tmd *treeMetaData) error {
 
 func (s *storage) loadNodeRaw(nodeId uint32) ([]byte, error) {
 
-  offset := (int(nodeId) * int(s.pageSize)) + metadataSize
-
-  data := make([]byte, int(s.pageSize))
-  _, err := s.fo.ReadAt(data, int64(offset))
+  page, err := s.getPage(nodeId)
   if err != nil {
-    return nil, fmt.Errorf("Error reading file")
+    return nil, fmt.Errorf("Error reading file : %w", err)
   }
 
+	// Copy to avoid modifying the cache Directly
+  data := make([]byte, int(s.pageSize))
+  copy(data, page)
 
   nextPageId := decodeUint32(data[4:8])
   data = data[8:]
   for nextPageId != uint32(0) {
-    tempData := make([]byte, int(s.pageSize))
-    offset := (int(nextPageId) * int(s.pageSize)) + metadataSize
-    _, err := s.fo.ReadAt(tempData, int64(offset))
+    tempPage, err := s.getPage(nextPageId)
     if err != nil {
       return nil, fmt.Errorf("error reading file : %w", err)
     }
+    tempData := make([]byte, int(s.pageSize))
+    copy(tempData, tempPage)
+
     nextPageId = decodeUint32(tempData[4:8])
     tempData = tempData[8:]
 
@@ -264,11 +309,6 @@ func (s *storage) updateNode(cur *node) error {
     }
   }
 
-  err = s.flush()
-  if err != nil {
-    return fmt.Errorf("Error flushing to file : %w", err)
-  }
-
   return nil
 }
 
@@ -318,28 +358,25 @@ func (s *storage) newNode() (uint32, error) {
   copy(data[4:8], encodeUint32(nextNodeId))
   copy(data[8:], encodeNode(newNode))
 
-  offset := (int(newNodeId) * int(s.pageSize)) + metadataSize
-  n, err := s.fo.WriteAt(data, int64(offset))
-  if err != nil {
-    return uint32(0), fmt.Errorf("Error writing to file :%w",err)
-  } else {
-    if n != len(data) {
-      return uint32(0), fmt.Errorf("Had to write %d, only wrote %d", len(data), n)
-    }
-  }
-
-  err = s.flush()
-  if err != nil {
-    return uint32(0), fmt.Errorf("Error flushing : %w", err)
+  if err := s.setPage(newNodeId, data); err != nil {
+    return uint32(0), fmt.Errorf("Error writing to file :%w", err)
   }
 
   return newNodeId, nil
 }
 
-func (s *storage) flush() error {
+func (s *storage) sync() error {
   if err := s.fo.Sync(); err != nil {
     return fmt.Errorf("Error flushing the file : %w",err)
   }
 
   return nil
+}
+
+func (s *storage) close() error {
+  if err := s.sync(); err != nil {
+    return err
+  }
+
+  return s.fo.Close()
 }

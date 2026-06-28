@@ -33,6 +33,10 @@ func BeginQueryLoop(tree *BPTree) error {
     case -1 :
       fmt.Println("Invalid Query")
     case 0:
+      // durably flush buffered writes before shutting down.
+      if err := tree.Sync(); err != nil {
+        return fmt.Errorf("Error syncing on exit: %w", err)
+      }
       fmt.Println("Exiting")
       return nil
     case 1:

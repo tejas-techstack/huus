@@ -21,11 +21,6 @@ func (s *storage) newPage() (uint32, error) {
       return uint32(0),fmt.Errorf("Error writing to page : %w", err)
     }
 
-    err = s.flush()
-    if err != nil {
-      return uint32(0), fmt.Errorf("Error flushing : %w", err)
-    }
-
     return pageId, nil
   }
 
@@ -89,12 +84,14 @@ func (s *storage) readPageData(pageId uint32) ([]byte, error) {
     return nil, fmt.Errorf("Page Id : %d is empty.", pageId)
   }
 
-  offset := int64(int(pageId) * int(s.pageSize) + metadataSize)
-  pageData := make([]byte, 8)
-  _, err := s.fo.ReadAt(pageData, offset)
+  page, err := s.getPage(pageId)
   if err != nil {
     return nil, fmt.Errorf("Error reading page data : %w", err)
   }
+
+  // return a copy of the page header so callers never mutate the cache.
+  pageData := make([]byte, 8)
+  copy(pageData, page[:8])
 
   return pageData, nil
 }
@@ -108,17 +105,8 @@ func (s *storage) writePage(pageId uint32, data []byte) error {
     return fmt.Errorf("Writing to page index 0 is not allowed.")
   }
 
-  page := make([]byte, s.pageSize)
-  copy(page, data)
-  
-  offset := int64(int(pageId) * int(s.pageSize) + metadataSize)
-  n, err := s.fo.WriteAt(page, offset)
-  if err != nil {
+  if err := s.setPage(pageId, data); err != nil {
     return fmt.Errorf("Error writing to file : %w", err)
-  } else {
-    if n != len(page) {
-      return fmt.Errorf("Wanted to write: %d, wrote : %d", len(page), n)
-    }
   }
 
   return nil
@@ -129,13 +117,14 @@ func (s *storage) readPage(pageId uint32) ([]byte, error) {
     return nil, fmt.Errorf("Error reading a free page.")
   }
 
-  page := make([]byte, s.pageSize)
-
-  offset := int64(int(pageId) * int(s.pageSize) + metadataSize)
-  _, err := s.fo.ReadAt(page, offset)
+  cached, err := s.getPage(pageId)
   if err != nil {
     return nil, fmt.Errorf("Error reading from file : %w", err)
   }
+
+  // return a copy so callers never mutate the cached page.
+  page := make([]byte, s.pageSize)
+  copy(page, cached)
 
   return page,nil
 }
@@ -160,11 +149,6 @@ func (s *storage) freeThePage(pageId uint32) error {
   err := s.writePage(pageId, emptyData)
   if err != nil {
     return fmt.Errorf("Error writing to page : %w", err)
-  }
-
-  err = s.flush()
-  if err != nil {
-    return fmt.Errorf("Error flushing : %w", err)
   }
 
   s.freePages = append(s.freePages, pageId)
