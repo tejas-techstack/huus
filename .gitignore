@@ -5,3 +5,4 @@ kv/go.mod
 *.out
 *temp*
 *.db
+/logs

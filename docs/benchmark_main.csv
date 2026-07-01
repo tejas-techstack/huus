@@ -1,0 +1,4 @@
+keys,insert_time,insert_ops_sec,insert_us_op,insert_heap,insert_heap_delta,read_time,read_ops_sec,read_us_op,delete_time,delete_ops_sec,delete_us_op,delete_heap,disk,bytes_per_key
+500,5.079915s,98,10159.8,0.2 MB,0.0 MB,7.536ms,66353,15.1,2.133311s,234,4266.6,0.2 MB,0.6 MB,1264
+5000,53.053167s,94,10610.6,0.2 MB,0.0 MB,45.146ms,110751,9.0,20.620319s,242,4124.1,0.2 MB,6.4 MB,1277
+50000,10m29.132971s,79,12582.7,0.2 MB,0.0 MB,330.09ms,151474,6.6,5m10.891695s,161,6217.8,0.3 MB,64.0 MB,1280
